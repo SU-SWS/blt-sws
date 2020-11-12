@@ -1,0 +1,13 @@
+{
+    "name": "su-sws/blt-sws",
+    "description": "BLT Plugin commands",
+    "type": "library",
+    "keywords": ["acquia", "blt"],
+    "license": "MIT",
+    "require": {},
+    "autoload": {
+        "psr-4": {
+            "Sws\\BltSws\\": "./src/"
+        }
+    }
+}
