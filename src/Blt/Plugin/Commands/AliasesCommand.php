@@ -362,11 +362,6 @@ class AliasesCommand extends BltTasks {
       mkdir($this->siteAliasDir);
     }
     $filePath = $this->siteAliasDir . '/' . $site_id . '.site.yml';
-    if (file_exists($filePath)) {
-      if (!$this->confirm("File $filePath already exists and will be overwritten. Continue?")) {
-        throw new \Exception("Aborted at user request");
-      }
-    }
 
     file_put_contents($filePath, Yaml::dump($aliases));
     return $filePath;

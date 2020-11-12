@@ -7,7 +7,7 @@ use Acquia\Blt\Robo\Commands\Artifact\AcHooksCommand;
 /**
  * Class CardinalsitesServerCommand.
  */
-class SwsServerCommands extends AcHooksCommand {
+class ServerCommands extends AcHooksCommand {
 
   use SwsCommandTrait;
 
