@@ -4,6 +4,7 @@ namespace Sws\BltSws\Blt\Plugin\Commands;
 
 use Acquia\Blt\Robo\BltTasks;
 use Acquia\Blt\Robo\Exceptions\BltException;
+use Acquia\BltDrupalTest\Blt\Plugin\Commands\PhpUnitCommand;
 use Robo\ResultData;
 use Symfony\Component\Console\Output\OutputInterface;
 
@@ -12,7 +13,41 @@ use Symfony\Component\Console\Output\OutputInterface;
  *
  * @package Example\Blt\Plugin\Commands
  */
-class PhpUnitCommands extends BltTasks {
+class PhpUnitCommands extends PhpUnitCommand {
+
+  /**
+   * Before the phpunit tests run, build the phpunit.xml config file.
+   *
+   * @hook pre-command tests:phpunit:run
+   */
+  public function beforePhpUnit() {
+    $this->invokeCommand('tests:phpunit:config');
+  }
+
+  /**
+   * Build the phpunit.xml configuration file.
+   *
+   * @command tests:phpunit:config
+   */
+  public function buildPhpUnitConfig() {
+    $root = $this->getConfigValue('repo.root');
+    $docroot = $this->getConfigValue('docroot');
+
+    $task = $this->taskFilesystemStack();
+    if (!file_exists("$docroot/core/phpunit.xml")) {
+      $task->copy("$root/tests/phpunit/example.phpunit.xml", "$docroot/core/phpunit.xml")
+        ->run();
+      if (empty($this->getConfigValue('drupal.db.password'))) {
+        // If the password is empty, remove the colon between the username &
+        // password. This prevents the system from thinking its supposed to
+        // use a password.
+        $file_contents = file_get_contents("$docroot/core/phpunit.xml");
+        str_replace(':${drupal.db.password}', '', $file_contents);
+        file_put_contents("$docroot/core/phpunit.xml", $file_contents);
+      }
+      $this->getConfig()->expandFileProperties("$docroot/core/phpunit.xml");
+    }
+  }
 
   /**
    * Setup and run PHPUnit tests with code coverage.
@@ -26,15 +61,8 @@ class PhpUnitCommands extends BltTasks {
    *   Throws an exception if any test fails.
    */
   public function runPhpUnitTestsCoverage() {
-    $report_directory = $this->getConfigValue('tests.reports.localDir') . '/phpunit';
-
-    $config = $this->getConfigValue('tests.phpunit');
-    try {
-      $this->executeUnitCoverageTests($config, $report_directory);
-    }
-    catch (\Exception $e) {
-      throw $e;
-    }
+    $this->invokeCommand('tests:phpunit:config');
+    parent::runPhpUnitTests();
   }
 
   /**
@@ -54,17 +82,16 @@ class PhpUnitCommands extends BltTasks {
    *
    * @see \Acquia\Blt\Robo\Commands\Tests\PhpUnitCommand::executeUnitCoverageTests()
    */
-  public function executeUnitCoverageTests($config, $report_directory) {
-    if (is_array($config)) {
-      foreach ($config as $test) {
+  public function executeTests() {
+    if (is_array($this->phpunitConfig)) {
+      foreach ($this->phpunitConfig as $test) {
         $task = $this->taskPhpUnitTask()
-          ->xml($report_directory . '/coverage/results.xml')
+          ->xml($this->reportFile)
           ->printOutput(TRUE)
           ->printMetadata(FALSE);
 
-        // Add coverage report output.
-        $task->option('coverage-html', $report_directory . '/coverage/html', '=');
-        $task->option('coverage-xml', $report_directory . '/coverage/xml', '=');
+        $task->option('coverage-html', $this->reportsDir . '/coverage/html', '=');
+        $task->option('coverage-xml', $this->reportsDir . '/coverage/xml', '=');
 
         if (isset($test['path'])) {
           $task->dir($test['path']);
@@ -104,8 +131,9 @@ class PhpUnitCommands extends BltTasks {
           $task->excludeGroup($test['exclude']);
         }
 
-        // Only run Unit and Kernel tests.
-        $task->filter('/(Unit|Kernel)/');
+        if (isset($test['filter'])) {
+          $task->filter($test['filter']);
+        }
 
         if (isset($test['group'])) {
           $task->group($test['group']);
