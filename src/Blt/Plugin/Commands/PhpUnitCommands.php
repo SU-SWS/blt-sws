@@ -5,8 +5,10 @@ namespace Sws\BltSws\Blt\Plugin\Commands;
 use Acquia\Blt\Robo\BltTasks;
 use Acquia\Blt\Robo\Exceptions\BltException;
 use Acquia\BltDrupalTest\Blt\Plugin\Commands\PhpUnitCommand;
+use Drupal\Core\Serialization\Yaml;
 use Robo\ResultData;
 use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\Finder\Finder;
 
 /**
  * Testing command for codeception and phpunit.
@@ -30,6 +32,7 @@ class PhpUnitCommands extends PhpUnitCommand {
    * @command tests:phpunit:config
    */
   public function buildPhpUnitConfig() {
+    $this->cleanupInfoFiles();
     $root = $this->getConfigValue('repo.root');
     $docroot = $this->getConfigValue('docroot');
 
@@ -46,6 +49,25 @@ class PhpUnitCommands extends PhpUnitCommand {
         file_put_contents("$docroot/core/phpunit.xml", $file_contents);
       }
       $this->getConfig()->expandFileProperties("$docroot/core/phpunit.xml");
+    }
+  }
+
+  /**
+   * Clean up any info files for test modules that aren't set correctly.
+   */
+  protected function cleanupInfoFiles() {
+    $docroot = $this->getConfigValue('docroot');
+    $finder = new Finder();
+    $finder->files()->in("$docroot/modules/")->name('*.info.yml');
+    foreach ($finder as $file) {
+      $absoluteFilePath = $file->getRealPath();
+      $info_contents = file_get_contents($absoluteFilePath);
+      $info = Yaml::decode($info_contents);
+
+      if (isset($info['core']) && !isset($info['core_version_requirement'])) {
+        $info_contents = preg_replace('/core:.*/', 'core_version_requirement: ^8.8 || ^9', $info_contents);
+        file_put_contents($absoluteFilePath, $info_contents);
+      }
     }
   }
 
