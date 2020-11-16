@@ -88,6 +88,36 @@ class PhpUnitCommands extends PhpUnitCommand {
   }
 
   /**
+   * Test the code coverage is good.
+   *
+   * @hook post-command tests:phpunit:coverage:run
+   */
+  public function postPhpUnitCoverage() {
+    $required_pass = $this->getConfigValue('tests.reports.coveragePass');
+    if (empty($required_pass)) {
+      return;
+    }
+
+    $report = $this->reportsDir . '/coverage/xml/index.xml';
+    if (!file_exists($report)) {
+      throw new \Exception('Coverage report not found at ' . $report);
+    }
+
+    libxml_use_internal_errors(TRUE);
+    $dom = new \DOMDocument();
+    $dom->loadHtml(file_get_contents($report));
+    $xpath = new \DOMXPath($dom);
+
+    $coverage_percent = $xpath->query("//directory[@name='/']/totals/lines/@percent");
+    $percent = (float) $coverage_percent->item(0)->nodeValue;
+    $pass = $this->getConfigValue('tests.reports.coveragePass');
+    if ($pass > $percent) {
+      throw new \Exception("Test coverage is only at $percent%. $pass% is required.");
+    }
+    $this->yell(sprintf('Coverage at %s%%. %s%% required.', $percent, $pass));
+  }
+
+  /**
    * Executes all PHPUnit tests.
    *
    * This method is copied from Acquia BLT command for running phpunit tests.

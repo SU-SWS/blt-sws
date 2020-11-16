@@ -65,31 +65,6 @@ class CircleCiCommands extends BltTasks {
   }
 
   /**
-   * Things to do after a PHPunit coverage run on circleci.
-   *
-   * @hook post-command sws:circleci:phpunit:coverage
-   */
-  public function phpUnitCoverCheck() {
-    $report = $this->getConfigValue('tests.reports.localDir') . '/phpunit/coverage/xml/index.xml';
-    if (!file_exists($report)) {
-      throw new \Exception('Coverage report not found at ' . $report);
-    }
-
-    libxml_use_internal_errors(TRUE);
-    $dom = new \DOMDocument();
-    $dom->loadHtml(file_get_contents($report));
-    $xpath = new \DOMXPath($dom);
-
-    $coverage_percent = $xpath->query("//directory[@name='/']/totals/lines/@percent");
-    $percent = (float) $coverage_percent->item(0)->nodeValue;
-    $pass = $this->getConfigValue('tests.reports.coveragePass');
-    if ($pass > $percent) {
-      throw new \Exception("Test coverage is only at $percent%. $pass% is required.");
-    }
-    $this->yell(sprintf('Coverage at %s%%. %s%% required.', $percent, $pass));
-  }
-
-  /**
    * Setup drupal and install the profile configured in the blt.yml.
    *
    * @command sws:circleci:setup
