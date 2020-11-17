@@ -14,7 +14,7 @@ class ServerCommands extends AcHooksCommand {
   /**
    * Get encryption keys from acquia.
    *
-   * @command cardinalsites:keys
+   * @command sws:keys
    * @description Get encryption keys from acquia's servers
    */
   public function cardinalsitesKeys() {

@@ -54,7 +54,7 @@ class SwsCommands extends BltTasks {
   /**
    * Gets information about outdated composer packages, formatted for humans.
    *
-   * @command cardinalsites:outdated
+   * @command sws:outdated
    * @description Checks with composer and reports about outdated dependencies
    */
   public function checkOutdatedDependencies() {
