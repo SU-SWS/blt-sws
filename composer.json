@@ -4,7 +4,10 @@
     "type": "library",
     "keywords": ["acquia", "blt"],
     "license": "MIT",
-    "require": {},
+    "require": {
+        "davidrjonas/composer-lock-diff": "^1.0@dev",
+        "typhonius/acquia-php-sdk-v2": "^2.0"
+    },
     "autoload": {
         "psr-4": {
             "Sws\\BltSws\\": "./src/"
