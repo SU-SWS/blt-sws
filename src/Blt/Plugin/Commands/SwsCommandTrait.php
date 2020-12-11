@@ -2,11 +2,17 @@
 
 namespace Sws\BltSws\Blt\Plugin\Commands;
 
+use Acquia\Blt\Robo\Common\YamlMunge;
+use Acquia\Blt\Robo\Exceptions\BltException;
 use AcquiaCloudApi\Connector\Connector;
 use AcquiaCloudApi\Endpoints\Applications;
+use AcquiaCloudApi\Endpoints\Databases;
+use AcquiaCloudApi\Endpoints\Domains;
 use AcquiaCloudApi\Endpoints\Environments;
+use AcquiaCloudApi\Endpoints\Notifications;
 use AcquiaCloudApi\Endpoints\Servers;
 use AcquiaCloudApi\Connector\Client;
+use AcquiaCloudApi\Endpoints\SslCertificates;
 use Zend\Stdlib\Glob;
 
 /**
@@ -17,6 +23,34 @@ use Zend\Stdlib\Glob;
  * @package Acquia\Blt\Custom\Commands
  */
 trait SwsCommandTrait {
+
+  /**
+   * App id.
+   *
+   * @var string
+   */
+  protected $appId;
+
+  /**
+   * Cloud config dir.
+   *
+   * @var string
+   */
+  protected $cloudConfDir;
+
+  /**
+   * Cloud config filename.
+   *
+   * @var string
+   */
+  protected $cloudConfFileName;
+
+  /**
+   * Cloud config file path.
+   *
+   * @var string
+   */
+  protected $cloudConfFilePath;
 
   /**
    * Acquia applications API.
@@ -44,6 +78,158 @@ trait SwsCommandTrait {
    * @link https://github.com/typhonius/acquia-php-sdk-v2
    */
   protected $acquiaServers;
+
+  /**
+   * Acquia Database API.
+   *
+   * @var \AcquiaCloudApi\Endpoints\Databases
+   *
+   * @link https://github.com/typhonius/acquia-php-sdk-v2
+   */
+  protected $acquiaDatabases;
+
+  /**
+   * Acquia Domains API.
+   *
+   * @var \AcquiaCloudApi\Endpoints\Domains
+   *
+   * @link https://github.com/typhonius/acquia-php-sdk-v2
+   */
+  protected $acquiaDomains;
+
+  /**
+   * Acquia Cert API.
+   *
+   * @var \AcquiaCloudApi\Endpoints\SslCertificates
+   */
+  protected $acquiaCertificates;
+
+  /**
+   * Acquia Notifications API.
+   *
+   * @var \AcquiaCloudApi\Endpoints\Notifications
+   *
+   * @link https://github.com/typhonius/acquia-php-sdk-v2
+   */
+  protected $acquiaNotifications;
+
+  /**
+   * @throws \Acquia\Blt\Robo\Exceptions\BltException
+   */
+  protected function connectAcquiaApi(){
+    $this->cloudConfDir = $_SERVER['HOME'] . '/.acquia';
+    $this->setAppId();
+    $this->cloudConfFileName = 'cloud_api.conf';
+    $this->cloudConfFilePath = $this->cloudConfDir . '/' . $this->cloudConfFileName;
+
+    $this->say('<info>Establishing connection to Acquia API</info>');
+    $cloudApiConfig = $this->loadCloudApiConfig();
+    $this->setCloudApiClient($cloudApiConfig['key'], $cloudApiConfig['secret']);
+  }
+
+  /**
+   * Sets the Acquia application ID from config and prompt.
+   */
+  protected function setAppId() {
+    if ($app_id = $this->getConfigValue('cloud.appId')) {
+      $this->appId = $app_id;
+    }
+    else {
+      $this->say("<info>To generate an alias for the Acquia Cloud, BLT requires your Acquia Cloud application ID.</info>");
+      $this->say("<info>See https://docs.acquia.com/acquia-cloud/manage/applications.</info>");
+      $this->appId = $this->askRequired('Please enter your Acquia Cloud application ID');
+      $this->writeAppConfig($this->appId);
+    }
+  }
+
+
+  /**
+   * Sets appId value in blt.yml to disable interative prompt.
+   *
+   * @param string $app_id
+   *   The Acquia Cloud application UUID.
+   *
+   * @throws \Acquia\Blt\Robo\Exceptions\BltException
+   */
+  protected function writeAppConfig($app_id) {
+
+    $project_yml = $this->getConfigValue('blt.config-files.project');
+    $this->say("Updating ${project_yml}...");
+    $project_config = YamlMunge::parseFile($project_yml);
+    $project_config['cloud']['appId'] = $app_id;
+    try {
+      YamlMunge::writeFile($project_yml, $project_config);
+    }
+    catch (\Exception $e) {
+      throw new BltException("Unable to update $project_yml.");
+    }
+  }
+
+  /**
+   * Loads CloudAPI token from an user input if it doesn't exist on disk.
+   *
+   * @return array
+   *   An array of CloudAPI token configuration.
+   */
+  protected function loadCloudApiConfig() {
+    if (!$config = $this->loadCloudApiConfigFile()) {
+      $config = $this->askForCloudApiCredentials();
+    }
+    return $config;
+  }
+
+  /**
+   * Load existing credentials from disk.
+   *
+   * @return bool|array
+   *   Returns credentials as array on success, or FALSE on failure.
+   */
+  protected function loadCloudApiConfigFile() {
+    if (file_exists($this->cloudConfFilePath)) {
+      return (array) json_decode(file_get_contents($this->cloudConfFilePath));
+    }
+    else {
+      return FALSE;
+    }
+  }
+
+  /**
+   * Interactive prompt to get Cloud API credentials.
+   *
+   * @return array
+   *   Returns credentials as array on success.
+   *
+   * @throws \Acquia\Blt\Robo\Exceptions\BltException
+   */
+  protected function askForCloudApiCredentials() {
+    $this->say("You may generate new API tokens at <comment>https://cloud.acquia.com/app/profile/tokens</comment>");
+    $key = $this->askRequired('Please enter your Acquia cloud API key:');
+    $secret = $this->askRequired('Please enter your Acquia cloud API secret:');
+
+    // Attempt to set client to check credentials (throws exception on failure).
+    $this->setCloudApiClient($key, $secret);
+
+    $config = [
+      'key' => $key,
+      'secret' => $secret,
+    ];
+    $this->writeCloudApiConfig($config);
+    return $config;
+  }
+
+  /**
+   * Writes configuration to local file.
+   *
+   * @param array $config
+   *   An array of CloudAPI configuraton.
+   */
+  protected function writeCloudApiConfig(array $config) {
+    if (!is_dir($this->cloudConfDir)) {
+      mkdir($this->cloudConfDir);
+    }
+    file_put_contents($this->cloudConfFilePath, json_encode($config));
+    $this->say("Credentials were written to {$this->cloudConfFilePath}.");
+  }
 
   /**
    * Recursive glob.
@@ -181,13 +367,13 @@ trait SwsCommandTrait {
     $git_remote = str_replace('.git', '', $git_remote);
     if (strpos($git_remote, 'https') !== FALSE) {
       $parsed_url = parse_url($git_remote);
-      list($owner, $repo_name) = explode('/', trim($parsed_url['path'], '/'));
+      [$owner, $repo_name] = explode('/', trim($parsed_url['path'], '/'));
       return ['owner' => $owner, 'name' => $repo_name];
     }
-    list(, $repo_name) = explode(':', $git_remote);
+    [, $repo_name] = explode(':', $git_remote);
     str_replace('.git', '', $git_remote);
 
-    list($owner, $repo_name) = explode('/', $repo_name);
+    [$owner, $repo_name] = explode('/', $repo_name);
     return ['owner' => $owner, 'name' => $repo_name];
   }
 
@@ -212,6 +398,10 @@ trait SwsCommandTrait {
       $this->acquiaApplications = new Applications($cloud_api);
       $this->acquiaEnvironments = new Environments($cloud_api);
       $this->acquiaServers = new Servers($cloud_api);
+      $this->acquiaDatabases = new Databases($cloud_api);
+      $this->acquiaDomains = new Domains($cloud_api);
+      $this->acquiaCertificates = new SslCertificates($cloud_api);
+      $this->acquiaNotifications = new Notifications($cloud_api);
 
       // We must call some method on the client to test authentication.
       $this->acquiaApplications->getAll();
