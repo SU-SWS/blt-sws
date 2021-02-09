@@ -13,6 +13,8 @@ use Robo\Contract\VerbosityThresholdInterface;
 class SwsHooksCommands extends BltTasks {
 
   /**
+   * Resets the opcache before the post code deploy command runs.
+   *
    * @hook pre-command artifact:ac-hooks:post-code-deploy
    */
   public function prePostCodeUpdate() {
