@@ -13,6 +13,15 @@ use Robo\Contract\VerbosityThresholdInterface;
 class SwsHooksCommands extends BltTasks {
 
   /**
+   * Resets the opcache before the post code deploy command runs.
+   *
+   * @hook pre-command artifact:ac-hooks:post-code-deploy
+   */
+  public function prePostCodeUpdate() {
+    opcache_reset();
+  }
+
+  /**
    * Things to do prior to building simplesamlphp-config.
    *
    * @hook pre-command source:build:simplesamlphp-config
