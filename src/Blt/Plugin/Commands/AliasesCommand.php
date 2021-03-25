@@ -67,9 +67,15 @@ class AliasesCommand extends BltTasks {
     $site_split = explode(':', $site->hosting->id);
 
     foreach ($environments as $env) {
+
+      $environment_servers = $this->acquiaServers->getAll($env->uuid);
+      $web_servers = array_filter($environment_servers->getArrayCopy(), function($server){
+        return in_array('web', $server->roles);
+      });
+
       $domains = [];
       $domains = $env->domains;
-      $this->say('<info>Found ' . count($domains) . ' sites for environment ' . $env->name . ', writing aliases...</info>');
+      $this->say('<info>Found ' . count($domains) . ' domains for environment ' . $env->name . ', writing aliases...</info>');
 
       $sshFull = $env->sshUrl;
       $ssh_split = explode('@', $env->sshUrl);
@@ -100,6 +106,8 @@ class AliasesCommand extends BltTasks {
         // Look for list of sites and loop over it.
         if ($acsf_sites) {
           foreach ($acsf_sites['sites'] as $name => $info) {
+            // Pick a random web server to use as the host.
+            $server = $web_servers[array_rand($web_servers)];
 
             // Reset uri value to identify non-primary domains.
             $uri = NULL;
@@ -117,7 +125,7 @@ class AliasesCommand extends BltTasks {
               // Skip sites without primary domain as the alias will be invalid.
               if (isset($uri)) {
                 $sites[$siteID][$envName] = ['uri' => $uri];
-                $siteAlias = $this->getAliases($uri, $envName, $remoteHost, $remoteUser, $siteID);
+                $siteAlias = $this->getAliases($uri, $envName, $server->hostname, $remoteUser, $siteID);
                 $sites[$siteID][$envName] = $siteAlias[$envName];
               }
               continue;
@@ -132,7 +140,6 @@ class AliasesCommand extends BltTasks {
     // Write the alias files to disk.
     foreach ($sites as $siteID => $aliases) {
       $this->writeSiteAliases($siteID, $aliases);
-
     }
   }
 

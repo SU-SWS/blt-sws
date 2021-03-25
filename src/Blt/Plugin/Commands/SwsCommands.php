@@ -78,4 +78,67 @@ class SwsCommands extends BltTasks {
     return new ResultData(0, "No outdated dependencies exist.");
   }
 
+  /**
+   *
+   * @command sws:update-environment
+   *
+   * @param $environment_name
+   *   Acquia environment machine name.
+   */
+  public function updateEnvironment($environment_name) {
+    $this->connectAcquiaApi();;
+    $environments = $this->acquiaEnvironments->getAll($this->appId);
+    $environment_uuid = NULL;
+    foreach ($environments as $environment) {
+      if ($environment->name == $environment_name) {
+        $environment_uuid = $environment->uuid;
+      }
+    }
+    if (!$environment_uuid) {
+      throw new \Exception('No environment found for ' . $environment_name);
+    }
+
+    $environment_servers = $this->acquiaServers->getAll($environment_uuid);
+    $web_servers = array_filter($environment_servers->getArrayCopy(), function ($server) {
+      return in_array('web', $server->roles);
+    });
+
+    $task = $this->taskParallelExec();
+    foreach ($web_servers as $server) {
+      $task->process(
+        $this->blt()
+          ->arg('sws:update-webhead')
+          ->arg($environment_name)
+          ->arg($server->hostname)
+      );
+    }
+    return $task->run();
+  }
+
+  /**
+   * @command sws:update-webhead
+   *
+   * @param $environment_name
+   * @param $hostname
+   */
+  public function updateEnvironmentWebhead($environment_name, $hostname) {
+    $aliases = $this->taskDrush()
+      ->drush('sa')
+      ->option('format', 'json', '=')
+      ->printOutput(FALSE)
+      ->run()
+      ->getMessage();
+    $aliases = json_decode($aliases, TRUE);
+
+    foreach ($aliases as $alias => $info) {
+      if ($info['host'] == $hostname) {
+        $alias = str_replace('@', '', $alias);
+        $this->taskDrush()
+          ->alias($alias)
+          ->drush('st')
+          ->run();
+      }
+    }
+  }
+
 }
