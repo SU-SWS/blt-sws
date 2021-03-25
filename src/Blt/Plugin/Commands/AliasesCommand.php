@@ -106,6 +106,8 @@ class AliasesCommand extends BltTasks {
         // Look for list of sites and loop over it.
         if ($acsf_sites) {
           foreach ($acsf_sites['sites'] as $name => $info) {
+            // Pick a random web server to use as the host.
+            $server = $web_servers[array_rand($web_servers)];
 
             // Pick a random web server to use as the host.
             $server = $web_servers[array_rand($web_servers)];
