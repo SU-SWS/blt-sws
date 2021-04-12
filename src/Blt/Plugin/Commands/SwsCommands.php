@@ -79,13 +79,16 @@ class SwsCommands extends BltTasks {
   }
 
   /**
+   * Clear cache, update databse and import config on all sites.
    *
    * @command sws:update-environment
+   * @option rebuild-node-access
+   *   If node_access_rebuild() should be executed after the config import.
    *
    * @param $environment_name
    *   Acquia environment machine name.
    */
-  public function updateEnvironment($environment_name) {
+  public function updateEnvironment($environment_name, $options = ['rebuild-node-access' => FALSE]) {
     $this->connectAcquiaApi();;
     $environments = $this->acquiaEnvironments->getAll($this->appId);
     $environment_uuid = NULL;
@@ -103,25 +106,35 @@ class SwsCommands extends BltTasks {
       return in_array('web', $server->roles);
     });
 
-    $task = $this->taskParallelExec();
+    $bash_lines = [];
     foreach ($web_servers as $server) {
-      $task->process(
-        $this->blt()
-          ->arg('sws:update-webhead')
-          ->arg($environment_name)
-          ->arg($server->hostname)
-      );
+      $task = $this->blt()
+        ->arg('sws:update-webhead')
+        ->arg($environment_name)
+        ->arg($server->hostname);
+      if ($options['rebuild-node-access']) {
+        $task->option('rebuild-node-access');
+      }
+
+      $bash_lines[] = $task->getCommand();
     }
-    return $task->run();
+    $this->taskExec(implode(" &\n", $bash_lines))->run();
   }
 
   /**
+   * Update all sites with an alias that matches the webhead url.
+   *
    * @command sws:update-webhead
    *
-   * @param $environment_name
-   * @param $hostname
+   * @option rebuild-node-access
+   *   If node_access_rebuild() should be executed after the config import.
+   *
+   * @param string $environment_name
+   *   Acquia environment machine name.
+   * @param string $hostname
+   *   Drush alias host name.
    */
-  public function updateEnvironmentWebhead($environment_name, $hostname) {
+  public function updateEnvironmentWebhead($environment_name, $hostname, $options = ['rebuild-node-access' => FALSE]) {
     $aliases = $this->taskDrush()
       ->drush('sa')
       ->option('format', 'json', '=')
@@ -133,10 +146,16 @@ class SwsCommands extends BltTasks {
     foreach ($aliases as $alias => $info) {
       if ($info['host'] == $hostname) {
         $alias = str_replace('@', '', $alias);
-        $this->taskDrush()
+        $task = $this->taskDrush()
           ->alias($alias)
-          ->drush('st')
-          ->run();
+          ->drush('cache:rebuild')
+          ->drush('updatedb')
+          ->drush('config:import');
+
+        if ($options['rebuild-node-access']) {
+          $task->drush('eval')->arg('node_access_rebuild();');
+        }
+        $task->run();
       }
     }
   }
