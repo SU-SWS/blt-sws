@@ -144,7 +144,7 @@ class SwsCommands extends BltTasks {
     $aliases = json_decode($aliases, TRUE);
 
     foreach ($aliases as $alias => $info) {
-      if ($info['host'] == $hostname) {
+      if ($info['host'] == $hostname && strpos($alias, $environment_name) !== FALSE) {
         $alias = str_replace('@', '', $alias);
         $task = $this->taskDrush()
           ->alias($alias)
