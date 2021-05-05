@@ -172,19 +172,26 @@ class SwsCommands extends BltTasks {
    */
   public function updateEnvironmentWebhead($environment_name, $hostname, $options = ['rebuild-node-access' => FALSE]) {
     foreach ($this->getSiteAliases() as $alias => $info) {
-
       if ($info['host'] == $hostname && strpos($alias, $environment_name) !== FALSE) {
-        $task = $this->taskDrush()
-          ->alias(str_replace('@', '', $alias))
-          ->drush('cache:rebuild')
-          ->drush('updatedb')
-          ->drush('config:import');
+        $attempts = 0;
+        // Try 3 times for each site update.
+        while ($attempts < 3) {
+          $attempts++;
 
-        if ($options['rebuild-node-access']) {
-          $task->drush('eval')->arg('node_access_rebuild();');
+          $task = $this->taskDrush()
+            ->alias(str_replace('@', '', $alias))
+            ->drush('deploy');
+
+          if ($options['rebuild-node-access']) {
+            $task->drush('eval')->arg('node_access_rebuild();');
+          }
+
+          if ($task->run()->wasSuccessful()) {
+            $attempts = 999;
+          }
         }
-        $task->run();
       }
+
     }
   }
 
