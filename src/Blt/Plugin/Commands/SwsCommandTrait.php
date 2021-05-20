@@ -6,6 +6,7 @@ use Acquia\Blt\Robo\Common\YamlMunge;
 use Acquia\Blt\Robo\Exceptions\BltException;
 use AcquiaCloudApi\Connector\Connector;
 use AcquiaCloudApi\Endpoints\Applications;
+use AcquiaCloudApi\Endpoints\DatabaseBackups;
 use AcquiaCloudApi\Endpoints\Databases;
 use AcquiaCloudApi\Endpoints\Domains;
 use AcquiaCloudApi\Endpoints\Environments;
@@ -87,6 +88,15 @@ trait SwsCommandTrait {
    * @link https://github.com/typhonius/acquia-php-sdk-v2
    */
   protected $acquiaDatabases;
+
+  /**
+   * Acquia Database Backups API.
+   *
+   * @var \AcquiaCloudApi\Endpoints\DatabaseBackups
+   *
+   * @link https://github.com/typhonius/acquia-php-sdk-v2
+   */
+  protected $acquiaDatabaseBackups;
 
   /**
    * Acquia Domains API.
@@ -399,6 +409,7 @@ trait SwsCommandTrait {
       $this->acquiaEnvironments = new Environments($cloud_api);
       $this->acquiaServers = new Servers($cloud_api);
       $this->acquiaDatabases = new Databases($cloud_api);
+      $this->acquiaDatabaseBackups = new DatabaseBackups($cloud_api);
       $this->acquiaDomains = new Domains($cloud_api);
       $this->acquiaCertificates = new SslCertificates($cloud_api);
       $this->acquiaNotifications = new Notifications($cloud_api);
