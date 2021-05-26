@@ -54,6 +54,11 @@ trait SwsCommandTrait {
   protected $cloudConfFilePath;
 
   /**
+   * @var 
+   */
+  protected $acquiaApi;
+
+  /**
    * Acquia applications API.
    *
    * @var \AcquiaCloudApi\Endpoints\Applications
@@ -403,16 +408,16 @@ trait SwsCommandTrait {
         'key' => $key,
         'secret' => $secret,
       ]);
-      $cloud_api = Client::factory($connector);
-
-      $this->acquiaApplications = new Applications($cloud_api);
-      $this->acquiaEnvironments = new Environments($cloud_api);
-      $this->acquiaServers = new Servers($cloud_api);
-      $this->acquiaDatabases = new Databases($cloud_api);
-      $this->acquiaDatabaseBackups = new DatabaseBackups($cloud_api);
-      $this->acquiaDomains = new Domains($cloud_api);
-      $this->acquiaCertificates = new SslCertificates($cloud_api);
-      $this->acquiaNotifications = new Notifications($cloud_api);
+      $this->acquiaApi  = Client::factory($connector);
+      
+      $this->acquiaApplications = new Applications($this->acquiaApi);
+      $this->acquiaEnvironments = new Environments($this->acquiaApi);
+      $this->acquiaServers = new Servers($this->acquiaApi);
+      $this->acquiaDatabases = new Databases($this->acquiaApi);
+      $this->acquiaDatabaseBackups = new DatabaseBackups($this->acquiaApi);
+      $this->acquiaDomains = new Domains($this->acquiaApi);
+      $this->acquiaCertificates = new SslCertificates($this->acquiaApi);
+      $this->acquiaNotifications = new Notifications($this->acquiaApi);
 
       // We must call some method on the client to test authentication.
       $this->acquiaApplications->getAll();
