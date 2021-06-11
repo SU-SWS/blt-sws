@@ -166,32 +166,6 @@ class SwsCommands extends BltTasks {
   }
 
   /**
-   * Run a site status to check if the connection works on the give hostname.
-   *
-   * @param string $environment_name
-   *   Acquia environment machine name.
-   * @param string $hostname
-   *   Alias host name.
-   *
-   * @return bool
-   *   If successful.
-   *
-   * @throws \Robo\Exception\TaskException
-   */
-  protected function checkKnownHosts($environment_name, $hostname) {
-    $this->say('Checking connection to webhead ' . $hostname);
-    foreach ($this->getSiteAliases() as $alias => $info) {
-      if ($info['host'] == $hostname && strpos($alias, $environment_name) !== FALSE) {
-        return $this->taskDrush()->alias(str_replace('@', '', $alias))
-          ->drush('st')
-          ->printOutput(FALSE)
-          ->run()
-          ->wasSuccessful();
-      }
-    }
-  }
-
-  /**
    * Update all sites with an alias that matches the webhead url.
    *
    * @command sws:update-webhead
@@ -204,7 +178,7 @@ class SwsCommands extends BltTasks {
    * @param string $hostname
    *   Drush alias host name.
    */
-  public function updateEnvironmentWebhead($environment_name, $hostname, $options = ['rebuild-node-access' => FALSE]) {
+    public function updateEnvironmentWebhead($environment_name, $hostname, $options = ['rebuild-node-access' => FALSE]) {
     foreach ($this->getSiteAliases() as $alias => $info) {
       $success = FALSE;
       if ($info['host'] == $hostname && strpos($alias, $environment_name) !== FALSE) {
