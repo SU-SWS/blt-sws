@@ -114,6 +114,10 @@ class SwsCommands extends BltTasks {
     });
 
     $bash_lines = [];
+
+    if (file_exists(__DIR__ . '/failed.txt')) {
+      unlink(__DIR__ . '/failed.txt');
+    }
     foreach ($web_servers as $server) {
       if (!$this->checkKnownHosts($environment_name, $server->hostname)) {
         throw new \Exception('Unknown error when connecting to ' . $server->hostname);
@@ -129,6 +133,10 @@ class SwsCommands extends BltTasks {
       $bash_lines[] = $task->getCommand();
     }
     $this->taskExec(implode(" &\n", $bash_lines) . PHP_EOL . 'wait')->run();
+    if (file_exists(__DIR__ . '/failed.txt')) {
+      $sites = array_filter(explode("\n", file_get_contents(__DIR__ . '/failed.txt')));
+      throw new \Exception('Some sites failed to update: ' . implode(', ', $sites) . "\n\nManually run `drush deploy` at these aliases to resolve them.");
+    }
   }
 
   /**
@@ -172,26 +180,30 @@ class SwsCommands extends BltTasks {
    */
   public function updateEnvironmentWebhead($environment_name, $hostname, $options = ['rebuild-node-access' => FALSE]) {
     foreach ($this->getSiteAliases() as $alias => $info) {
+      $success = FALSE;
       if ($info['host'] == $hostname && strpos($alias, $environment_name) !== FALSE) {
-        $attempts = 0;
-        // Try 3 times for each site update.
-        while ($attempts < 3) {
-          $attempts++;
-
-          $task = $this->taskDrush()
-            ->alias(str_replace('@', '', $alias))
-            ->drush('deploy');
-
-          if ($options['rebuild-node-access']) {
-            $task->drush('eval')->arg('node_access_rebuild();');
-          }
-
-          if ($task->run()->wasSuccessful()) {
-            $attempts = 999;
-          }
+//        $attempts = 0;
+//        // Try 3 times for each site update.
+//        while ($attempts < 3) {
+//          $attempts++;
+//
+//          $task = $this->taskDrush()
+//            ->alias(str_replace('@', '', $alias))
+//            ->drush('deploy');
+//
+//          if ($options['rebuild-node-access']) {
+//            $task->drush('eval')->arg('node_access_rebuild();');
+//          }
+//
+//          if ($task->run()->wasSuccessful()) {
+//            $success = TRUE;
+//            $attempts = 999;
+//          }
+//        }
+        if (!$success) {
+          file_put_contents(__DIR__ . '/failed.txt', $alias . PHP_EOL, FILE_APPEND);
         }
       }
-
     }
   }
 
