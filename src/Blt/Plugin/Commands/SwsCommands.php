@@ -16,6 +16,13 @@ class SwsCommands extends BltTasks {
   use SwsCommandTrait;
 
   /**
+   * Keyed array of aliases.
+   *
+   * @var array
+   */
+  protected $siteAliases = [];
+
+  /**
    * Clear out the domain 301 ("Site URL") redirect settings and clear caches.
    *
    * @command sws:unset-domain-301
@@ -76,6 +83,151 @@ class SwsCommands extends BltTasks {
       return new ResultData(1, $outdated);
     }
     return new ResultData(0, "No outdated dependencies exist.");
+  }
+
+  /**
+   * Clear cache, update databse and import config on all sites.
+   *
+   * @command sws:update-environment
+   * @option rebuild-node-access
+   *   If node_access_rebuild() should be executed after the config import.
+   *
+   * @param $environment_name
+   *   Acquia environment machine name.
+   */
+  public function updateEnvironment($environment_name, $options = ['rebuild-node-access' => FALSE]) {
+    $this->connectAcquiaApi();;
+    $environments = $this->acquiaEnvironments->getAll($this->appId);
+    $environment_uuid = NULL;
+    foreach ($environments as $environment) {
+      if ($environment->name == $environment_name) {
+        $environment_uuid = $environment->uuid;
+      }
+    }
+    if (!$environment_uuid) {
+      throw new \Exception('No environment found for ' . $environment_name);
+    }
+
+    $environment_servers = $this->acquiaServers->getAll($environment_uuid);
+    $web_servers = array_filter($environment_servers->getArrayCopy(), function ($server) {
+      return in_array('web', $server->roles);
+    });
+
+    $bash_lines = [];
+
+    if (file_exists(__DIR__ . '/failed.txt')) {
+      unlink(__DIR__ . '/failed.txt');
+    }
+    foreach ($web_servers as $server) {
+      if (!$this->checkKnownHosts($environment_name, $server->hostname)) {
+        throw new \Exception('Unknown error when connecting to ' . $server->hostname);
+      }
+      $task = $this->blt()
+        ->arg('sws:update-webhead')
+        ->arg($environment_name)
+        ->arg($server->hostname);
+      if ($options['rebuild-node-access']) {
+        $task->option('rebuild-node-access');
+      }
+
+      $bash_lines[] = $task->getCommand();
+    }
+    $this->taskExec(implode(" &\n", $bash_lines) . PHP_EOL . 'wait')->run();
+    if (file_exists(__DIR__ . '/failed.txt')) {
+      $sites = array_filter(explode("\n", file_get_contents(__DIR__ . '/failed.txt')));
+      throw new \Exception('Some sites failed to update: ' . implode(', ', $sites) . "\n\nManually run `drush deploy` at these aliases to resolve them.");
+    }
+  }
+
+  /**
+   * Run a site status to check if the connection works on the give hostname.
+   *
+   * @param string $environment_name
+   *   Acquia environment machine name.
+   * @param string $hostname
+   *   Alias host name.
+   *
+   * @return bool
+   *   If successful.
+   *
+   * @throws \Robo\Exception\TaskException
+   */
+  protected function checkKnownHosts($environment_name, $hostname) {
+    $this->say('Checking connection to webhead ' . $hostname);
+    foreach ($this->getSiteAliases() as $alias => $info) {
+      if ($info['host'] == $hostname && strpos($alias, $environment_name) !== FALSE) {
+        return $this->taskDrush()->alias(str_replace('@', '', $alias))
+          ->drush('st')
+          ->printOutput(FALSE)
+          ->run()
+          ->wasSuccessful();
+      }
+    }
+  }
+
+  /**
+   * Update all sites with an alias that matches the webhead url.
+   *
+   * @command sws:update-webhead
+   *
+   * @option rebuild-node-access
+   *   If node_access_rebuild() should be executed after the config import.
+   *
+   * @param string $environment_name
+   *   Acquia environment machine name.
+   * @param string $hostname
+   *   Drush alias host name.
+   */
+  public function updateEnvironmentWebhead($environment_name, $hostname, $options = ['rebuild-node-access' => FALSE]) {
+    foreach ($this->getSiteAliases() as $alias => $info) {
+      $success = FALSE;
+      if ($info['host'] == $hostname && strpos($alias, $environment_name) !== FALSE) {
+//        $attempts = 0;
+//        // Try 3 times for each site update.
+//        while ($attempts < 3) {
+//          $attempts++;
+//
+//          $task = $this->taskDrush()
+//            ->alias(str_replace('@', '', $alias))
+//            ->drush('deploy');
+//
+//          if ($options['rebuild-node-access']) {
+//            $task->drush('eval')->arg('node_access_rebuild();');
+//          }
+//
+//          if ($task->run()->wasSuccessful()) {
+//            $success = TRUE;
+//            $attempts = 999;
+//          }
+//        }
+        if (!$success) {
+          file_put_contents(__DIR__ . '/failed.txt', $alias . PHP_EOL, FILE_APPEND);
+        }
+      }
+    }
+  }
+
+  /**
+   * Get the list of all site aliases available.
+   *
+   * @return array
+   *   Keyed array of site aliases.
+   *
+   * @throws \Robo\Exception\TaskException
+   */
+  protected function getSiteAliases() {
+    if (!empty($this->siteAliases)) {
+      return $this->siteAliases;
+    }
+
+    $aliases = $this->taskDrush()
+      ->drush('sa')
+      ->option('format', 'json', '=')
+      ->printOutput(FALSE)
+      ->run()
+      ->getMessage();
+    $this->siteAliases = json_decode($aliases, TRUE);
+    return $this->siteAliases;
   }
 
 }
