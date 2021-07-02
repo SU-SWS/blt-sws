@@ -174,7 +174,7 @@ class AliasesCommand extends BltTasks {
       $alias[$envName]['paths'] = ['dump-dir' => '/mnt/tmp'];
       $alias[$envName]['root'] = $docroot;
       $alias[$envName]['user'] = $remoteUser;
-      $alias[$envName]['ssh'] = ['options' => '-p 22'];
+      $alias[$envName]['ssh'] = ['options' => '-p 22', 'tty' => 0];
 
       return $alias;
 
