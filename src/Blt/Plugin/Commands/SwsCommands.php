@@ -23,6 +23,55 @@ class SwsCommands extends BltTasks {
   protected $siteAliases = [];
 
   /**
+   * @command sws:cap-report
+   */
+  public function getCapReport() {
+    $aliases = glob($this->getConfigValue('repo.root') . '/drush/sites/*.yml');
+    foreach ($aliases as $file) {
+      unlink($file);
+    }
+    $this->invokeCommand('aliases');
+    $aliases = $this->taskDrush()
+      ->drush('sa')
+      ->option('format', 'json')
+      ->printOutput(FALSE)
+      ->run()
+      ->getMessage();
+    $aliases = json_decode($aliases, TRUE);
+    $data = [];
+    foreach ($aliases as $alias => $info) {
+      if (strpos($alias, '01live') === FALSE) {
+        continue;
+      }
+      $alias = str_replace('@', '', $alias);
+      $has_password = (int) $this->taskDrush()
+        ->alias($alias)
+        ->drush('sqlq')
+        ->arg('select count(*) from config_pages__su_person_cap_password')
+        ->printOutput(FALSE)
+        ->run()
+        ->getMessage();
+
+
+      if ($has_password) {
+        $count = (int) $this->taskDrush()
+          ->alias($alias)
+          ->drush('sqlq')
+          ->arg('select count(*) from migrate_map_su_stanford_person')
+          ->printOutput(FALSE)
+          ->run()
+          ->getMessage();
+        $data[$alias] = $count;
+      }
+    }
+
+    foreach ($data as $alias => $count) {
+      $site = str_replace('.01live', '', $alias);
+      $this->say("https://$site.sites.stanford.edu,$count");
+    }
+  }
+
+  /**
    * Clear out the domain 301 ("Site URL") redirect settings and clear caches.
    *
    * @command sws:unset-domain-301
@@ -182,27 +231,50 @@ class SwsCommands extends BltTasks {
     foreach ($this->getSiteAliases() as $alias => $info) {
       $success = FALSE;
       if ($info['host'] == $hostname && strpos($alias, $environment_name) !== FALSE) {
-        $attempts = 0;
+
+        $alias = str_replace('@', '', $alias);
+        $has_password = (int) $this->taskDrush()
+          ->alias($alias)
+          ->drush('sqlq')
+          ->arg('select count(*) from config_pages__su_person_cap_password')
+          ->printOutput(FALSE)
+          ->run()
+          ->getMessage();
+
+
+        if ($has_password) {
+          $count = (int) $this->taskDrush()
+            ->alias($alias)
+            ->drush('sqlq')
+            ->arg('select count(*) from migrate_map_su_stanford_person')
+            ->printOutput(FALSE)
+            ->run()
+            ->getMessage();
+          $site = str_replace('.01live', '', $alias);
+          file_put_contents(__DIR__ . '/cap.csv', "https://$site.sites.stanford.edu,$count" . PHP_EOL, FILE_APPEND);
+        }
+
+//        $attempts = 0;
         // Try 3 times for each site update.
-        while ($attempts < 3) {
-          $attempts++;
-
-          $task = $this->taskDrush()
-            ->alias(str_replace('@', '', $alias))
-            ->drush('deploy');
-
-          if ($options['rebuild-node-access']) {
-            $task->drush('eval')->arg('node_access_rebuild();');
-          }
-
-          if ($task->run()->wasSuccessful()) {
-            $success = TRUE;
-            $attempts = 999;
-          }
-        }
-        if (!$success) {
-          file_put_contents(__DIR__ . '/failed.txt', $alias . PHP_EOL, FILE_APPEND);
-        }
+//        while ($attempts < 3) {
+//          $attempts++;
+//
+//          $task = $this->taskDrush()
+//            ->alias(str_replace('@', '', $alias))
+//            ->drush('deploy');
+//
+//          if ($options['rebuild-node-access']) {
+//            $task->drush('eval')->arg('node_access_rebuild();');
+//          }
+//
+//          if ($task->run()->wasSuccessful()) {
+//            $success = TRUE;
+//            $attempts = 999;
+//          }
+//        }
+//        if (!$success) {
+//          file_put_contents(__DIR__ . '/failed.txt', $alias . PHP_EOL, FILE_APPEND);
+//        }
       }
     }
   }
