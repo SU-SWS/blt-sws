@@ -69,7 +69,7 @@ class AliasesCommand extends BltTasks {
     foreach ($environments as $env) {
 
       $environment_servers = $this->acquiaServers->getAll($env->uuid);
-      $web_servers = array_filter($environment_servers->getArrayCopy(), function($server){
+      $web_servers = array_filter($environment_servers->getArrayCopy(), function ($server) {
         return in_array('web', $server->roles);
       });
 
@@ -106,11 +106,13 @@ class AliasesCommand extends BltTasks {
         // Look for list of sites and loop over it.
         if ($acsf_sites) {
           foreach ($acsf_sites['sites'] as $name => $info) {
+
             // Pick a random web server to use as the host.
             $server = $web_servers[array_rand($web_servers)];
 
             // Reset uri value to identify non-primary domains.
             $uri = NULL;
+            $siteID = NULL;
 
             // Get site prefix from main domain.
             if (strpos($name, '.acsitefactory.com')) {
