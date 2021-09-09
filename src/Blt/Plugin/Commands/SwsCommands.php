@@ -334,8 +334,8 @@ class SwsCommands extends BltTasks {
       ->files()
       ->name('*.info.yml');
 
-    foreach ($finder as $dir) {
-      $info_file = $dir->getRealPath();
+    foreach ($finder as $file) {
+      $info_file = $file->getRealPath();
       $contents = file_get_contents($info_file);
       file_put_contents($info_file, preg_replace('/version: (.*)-dev/', 'version: $1', $contents));
     }
