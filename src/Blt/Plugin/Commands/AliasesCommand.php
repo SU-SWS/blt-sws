@@ -109,9 +109,6 @@ class AliasesCommand extends BltTasks {
             // Pick a random web server to use as the host.
             $server = $web_servers[array_rand($web_servers)];
 
-            // Pick a random web server to use as the host.
-            $server = $web_servers[array_rand($web_servers)];
-
             // Reset uri value to identify non-primary domains.
             $uri = NULL;
             $siteID = NULL;
