@@ -119,7 +119,7 @@ class AliasesCommand extends BltTasks {
               $acsf_site_name = explode('.', $name, 2);
               $siteID = $acsf_site_name[0];
             }
-            if (!empty($siteID) && !empty($info['flags']['preferred_domain'])) {
+            if (!empty($siteID)) {
               $uri = $name;
             }
 
