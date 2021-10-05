@@ -232,7 +232,7 @@ class AliasesCommand extends BltTasks {
   protected function writeSiteAliases($site_id, array $aliases) {
 
     if (!is_dir($this->siteAliasDir)) {
-      mkdir($this->siteAliasDir);
+      mkdir($this->siteAliasDir, 0777, TRUE);
     }
     $filePath = $this->siteAliasDir . '/' . $site_id . '.site.yml';
 
