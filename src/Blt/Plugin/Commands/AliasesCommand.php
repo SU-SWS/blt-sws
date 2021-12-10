@@ -176,6 +176,7 @@ class AliasesCommand extends BltTasks {
       $alias[$envName]['root'] = $docroot;
       $alias[$envName]['user'] = $remoteUser;
       $alias[$envName]['ssh'] = ['options' => '-p 22', 'tty' => 0];
+      $alias[$envName]['env-vars']['WEBHEAD'] = substr($remoteHost, 0, strpos($remoteHost, '.'));
 
       return $alias;
 
