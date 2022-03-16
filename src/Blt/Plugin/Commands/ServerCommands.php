@@ -43,7 +43,12 @@ class ServerCommands extends AcHooksCommand {
    * @hook post-command drupal:install
    */
   public function postDrupalInstallHook() {
-    $this->invokeCommand('drupal:toggle:modules');
+    try {
+      $this->invokeCommand('drupal:toggle:modules');
+    }
+    catch (\Throwable $e) {
+      $this->say($e->getMessage());
+    }
   }
 
 }
