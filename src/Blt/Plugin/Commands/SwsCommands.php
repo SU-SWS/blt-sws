@@ -240,7 +240,7 @@ class SwsCommands extends BltTasks {
    * @option packages
    *   Comma separated list of packages to create lists for.
    */
-  public function swsReleases($options = ['packages' => '']) {
+  public function swsReleases($options = ['packages' => '', 'base-branch' => 'master']) {
     $docroot = $this->getConfigValue('docroot');
     foreach (glob("$docroot/*/custom/*/*info.yml") as $package) {
       $package_name = basename($package, '.info.yml');
@@ -253,7 +253,7 @@ class SwsCommands extends BltTasks {
       }
 
       $this->say(sprintf('Creating release for %s', $package_name));
-      $this->createRelease($package);
+      $this->createRelease($package, $options['base-branch']);
     }
   }
 
@@ -262,9 +262,8 @@ class SwsCommands extends BltTasks {
    *
    * @param string $dir
    */
-  protected function createRelease($info_path) {
+  protected function createRelease($info_path, $base_branch) {
     $dir = dirname($info_path);
-    $base_branch = 'master';
     $branch_name = $this->taskGit()
       ->dir($dir)
       ->exec('rev-parse --abbrev-ref HEAD')
