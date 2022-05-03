@@ -240,7 +240,10 @@ class SwsCommands extends BltTasks {
    * @option packages
    *   Comma separated list of packages to create lists for.
    */
-  public function swsReleases($options = ['packages' => '', 'base-branch' => 'master']) {
+  public function swsReleases($options = [
+    'packages' => '',
+    'base-branch' => 'master',
+  ]) {
     $docroot = $this->getConfigValue('docroot');
     foreach (glob("$docroot/*/custom/*/*info.yml") as $package) {
       $package_name = basename($package, '.info.yml');
@@ -271,9 +274,20 @@ class SwsCommands extends BltTasks {
       ->run()
       ->getMessage();
     if ($branch_name == 'HEAD') {
-      throw new \Exception('Invalid branch name for ' . $dir);
+      $default_branch = '';
+      $remote = $this->taskGit()
+        ->dir($dir)
+        ->exec('remote -v')
+        ->printOutput(FALSE)
+        ->run()
+        ->getMessage();
+
+      preg_match('/origin\t(.*) \(push\)/im', $remote, $matches);
+      $remote = $matches[1];
+      $branch_name = $this->taskExec("git remote show $remote | sed -n '/HEAD branch/s/.*: //p'")->printOutput(false)->run()->getMessage();
     }
 
+    $this->taskGit()->dir($dir)->checkout($branch_name)->run();
     $this->taskGit()->dir($dir)->pull('origin', $branch_name)->run();
 
     $info = Yaml::decode(file_get_contents($info_path));
