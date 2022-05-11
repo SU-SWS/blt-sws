@@ -118,10 +118,22 @@ class SwsCommands extends BltTasks {
     if (file_exists(__DIR__ . '/failed.txt')) {
       unlink(__DIR__ . '/failed.txt');
     }
+    $db_update_tasks = [];
+    $config_update_tasks = [];
+
     foreach ($web_servers as $server) {
       if (!$this->checkKnownHosts($environment_name, $server->hostname)) {
         throw new \Exception('Unknown error when connecting to ' . $server->hostname);
       }
+      // Database updates only.
+      $task = $this->blt()
+        ->arg('sws:update-webhead')
+        ->arg($environment_name)
+        ->arg($server->hostname)
+        ->option('database-only');
+      $db_update_tasks[] = $task->getCommand();
+
+      // Config updates & imports.
       $task = $this->blt()
         ->arg('sws:update-webhead')
         ->arg($environment_name)
@@ -129,10 +141,12 @@ class SwsCommands extends BltTasks {
       if ($options['rebuild-node-access']) {
         $task->option('rebuild-node-access');
       }
-
-      $bash_lines[] = $task->getCommand();
+      $config_update_tasks[] = $task->getCommand();
     }
-    $this->taskExec(implode(" &\n", $bash_lines) . PHP_EOL . 'wait')->run();
+
+    $this->taskExec(implode(" &\n", $db_update_tasks) . PHP_EOL . 'wait')->run();
+    $this->taskExec(implode(" &\n", $config_update_tasks) . PHP_EOL . 'wait')->run();
+
     if (file_exists(__DIR__ . '/failed.txt')) {
       $sites = array_filter(explode("\n", file_get_contents(__DIR__ . '/failed.txt')));
       throw new \Exception('Some sites failed to update: ' . implode(', ', $sites) . "\n\nManually run `drush deploy` at these aliases to resolve them.");
@@ -178,7 +192,9 @@ class SwsCommands extends BltTasks {
    * @param string $hostname
    *   Drush alias host name.
    */
-    public function updateEnvironmentWebhead($environment_name, $hostname, $options = ['rebuild-node-access' => FALSE]) {
+  public function updateEnvironmentWebhead($environment_name, $hostname, $options = [
+    'rebuild-node-access' => FALSE,
+    'database-only' => FALSE]) {
     foreach ($this->getSiteAliases() as $alias => $info) {
       $success = FALSE;
       if ($info['host'] == $hostname && strpos($alias, $environment_name) !== FALSE) {
@@ -193,6 +209,12 @@ class SwsCommands extends BltTasks {
 
           if ($options['rebuild-node-access']) {
             $task->drush('eval')->arg('node_access_rebuild();');
+          }
+
+          if ($options['database-only']) {
+            $task = $this->taskDrush()
+              ->alias(str_replace('@', '', $alias))
+              ->drush('updatedb');
           }
 
           if ($task->run()->wasSuccessful()) {
