@@ -236,6 +236,7 @@ class SwsCommands extends BltTasks {
             $task->drush('config:import');
           }
 
+          $task->drush('state:set')->arg('system.maintenance')->arg(0);
           if ($task->run()->wasSuccessful()) {
             $success = TRUE;
             $attempts = 999;
