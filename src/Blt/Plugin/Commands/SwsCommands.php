@@ -186,6 +186,8 @@ class SwsCommands extends BltTasks {
    *
    * @option rebuild-node-access
    *   If node_access_rebuild() should be executed after the config import.
+   * @option database-only
+   *   Only run database updates. Do not run configuration imports.
    *
    * @param string $environment_name
    *   Acquia environment machine name.
