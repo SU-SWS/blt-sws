@@ -91,11 +91,19 @@ class SwsCommands extends BltTasks {
    * @command sws:update-environment
    * @option rebuild-node-access
    *   If node_access_rebuild() should be executed after the config import.
+   * @option database-only
+   *   Only run database updates
+   * @option configs-only
+   *   Only run config imports.
    *
    * @param $environment_name
    *   Acquia environment machine name.
    */
-  public function updateEnvironment($environment_name, $options = ['rebuild-node-access' => FALSE]) {
+  public function updateEnvironment($environment_name, $options = [
+    'rebuild-node-access' => FALSE,
+    'database-only' => FALSE,
+    'configs-only' => FALSE,
+  ]) {
     $this->connectAcquiaApi();;
     $environments = $this->acquiaEnvironments->getAll($this->appId);
     $environment_uuid = NULL;
@@ -126,20 +134,25 @@ class SwsCommands extends BltTasks {
         throw new \Exception('Unknown error when connecting to ' . $server->hostname);
       }
       // Database updates only.
-      $task = $this->blt()
-        ->arg('sws:update-webhead')
-        ->arg($environment_name)
-        ->arg($server->hostname)
-        ->option('database-only');
-      $db_update_tasks[] = $task->getCommand();
+      if (!$options['configs-only']) {
+        $task = $this->blt()
+          ->arg('sws:update-webhead')
+          ->arg($environment_name)
+          ->arg($server->hostname)
+          ->option('database-only');
+        if ($options['rebuild-node-access']) {
+          $task->option('rebuild-node-access');
+        }
+        $db_update_tasks[] = $task->getCommand();
+      }
 
       // Config updates & imports.
-      $task = $this->blt()
-        ->arg('sws:update-webhead')
-        ->arg($environment_name)
-        ->arg($server->hostname);
-      if ($options['rebuild-node-access']) {
-        $task->option('rebuild-node-access');
+      if (!$options['database-only']) {
+        $task = $this->blt()
+          ->arg('sws:update-webhead')
+          ->arg($environment_name)
+          ->arg($server->hostname)
+          ->option('configs-only');
       }
       $config_update_tasks[] = $task->getCommand();
     }
@@ -188,6 +201,8 @@ class SwsCommands extends BltTasks {
    *   If node_access_rebuild() should be executed after the config import.
    * @option database-only
    *   Only run database updates. Do not run configuration imports.
+   * @option configs-only
+   *   Only import configs.
    *
    * @param string $environment_name
    *   Acquia environment machine name.
@@ -196,7 +211,9 @@ class SwsCommands extends BltTasks {
    */
   public function updateEnvironmentWebhead($environment_name, $hostname, $options = [
     'rebuild-node-access' => FALSE,
-    'database-only' => FALSE]) {
+    'database-only' => FALSE,
+    'configs-only' => FALSE,
+  ]) {
     foreach ($this->getSiteAliases() as $alias => $info) {
       $success = FALSE;
       if ($info['host'] == $hostname && strpos($alias, $environment_name) !== FALSE) {
@@ -206,17 +223,17 @@ class SwsCommands extends BltTasks {
           $attempts++;
 
           $task = $this->taskDrush()
-            ->alias(str_replace('@', '', $alias))
-            ->drush('deploy');
+            ->alias(str_replace('@', '', $alias));
 
           if ($options['rebuild-node-access']) {
             $task->drush('eval')->arg('node_access_rebuild();');
           }
 
-          if ($options['database-only']) {
-            $task = $this->taskDrush()
-              ->alias(str_replace('@', '', $alias))
-              ->drush('updatedb');
+          if (!$options['configs-only']) {
+            $task->drush('updatedb');
+          }
+          if (!$options['database-only']) {
+            $task->drush('config:import');
           }
 
           if ($task->run()->wasSuccessful()) {
