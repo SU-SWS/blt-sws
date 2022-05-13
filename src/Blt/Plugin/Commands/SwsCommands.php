@@ -153,8 +153,8 @@ class SwsCommands extends BltTasks {
           ->arg($environment_name)
           ->arg($server->hostname)
           ->option('configs-only');
+        $config_update_tasks[] = $task->getCommand();
       }
-      $config_update_tasks[] = $task->getCommand();
     }
 
     $this->taskExec(implode(" &\n", $db_update_tasks) . PHP_EOL . 'wait')->run();
