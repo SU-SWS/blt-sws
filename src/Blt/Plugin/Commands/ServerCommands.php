@@ -37,18 +37,4 @@ class ServerCommands extends AcHooksCommand {
     return $this->collectionBuilder()->addTaskList($tasks)->run();
   }
 
-  /**
-   * This will be called after the drupal:install command.
-   *
-   * @hook post-command drupal:install
-   */
-  public function postDrupalInstallHook() {
-    try {
-      $this->invokeCommand('drupal:toggle:modules');
-    }
-    catch (\Throwable $e) {
-      $this->say($e->getMessage());
-    }
-  }
-
 }
