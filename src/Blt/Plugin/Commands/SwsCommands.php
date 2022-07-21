@@ -128,9 +128,9 @@ class SwsCommands extends BltTasks {
     }
     $db_update_tasks = [];
     $config_update_tasks = [];
+$parallel = $this->taskParallelExec();
+$parallel->printOutput(TRUE);
 
-    $parallel_db_tasks = $this->taskParallelExec();
-    $parallel_config_tasks = $this->taskParallelExec();
     foreach ($web_servers as $server) {
       //      if (!$this->checkKnownHosts($environment_name, $server->hostname)) {
       //        throw new \Exception('Unknown error when connecting to ' . $server->hostname);
@@ -155,12 +155,12 @@ class SwsCommands extends BltTasks {
         ->arg($environment_name)
         ->arg($server->hostname)
         ->option('configs-only');
-      $parallel_db_tasks->addTask($task);
+      $db_update_tasks[] = $task->getCommand();
       //      }
     }
 
-    $parallel_db_tasks->run();
-    $parallel_config_tasks->run();
+    $this->taskExec(implode(" &\n", $db_update_tasks) . PHP_EOL . 'wait')->run();
+//    $this->taskExec(implode(" &\n", $config_update_tasks) . PHP_EOL . 'wait')->run();
 
     if (file_exists(__DIR__ . '/failed.txt')) {
       $sites = array_filter(explode("\n", file_get_contents(__DIR__ . '/failed.txt')));
