@@ -239,9 +239,20 @@ class SwsCommands extends BltTasks {
           //          }
           //
           //          $task->drush('state:set')->arg('system.maintenance')->arg(0);
+
           $script = '$fields = \Drupal::entityTypeManager()->getStorage("field_storage_config")->loadMultiple();foreach ($fields as $field) {if ($field->getThirdPartySetting("field_encrypt", "encrypt", FALSE)) {$field->unsetThirdPartySetting("field_encrypt", "encrypt");$field->unsetThirdPartySetting("field_encrypt", "properties");$field->unsetThirdPartySetting("field_encrypt", "encryption_profile");$field->save();}}$queue_factory = \Drupal::service("queue");$queue_manager = \Drupal::service("plugin.manager.queue_worker");$queue = $queue_factory->get("cron_encrypted_field_update");$queue_worker = $queue_manager->createInstance("cron_encrypted_field_update");while ($item = $queue->claimItem()) {try {$queue_worker->processItem($item->data);$queue->deleteItem($item);}catch (\Exception $e) {$queue->releaseItem($item);}}\Drupal::service("module_installer")->uninstall(["field_encrypt"]);';
+//          $task = $this->taskDrush()
+//            ->alias(str_replace('@', '', $alias))
+//            ->drush('eval')
+//            ->arg($script)
+//            ->printOutput(FALSE);
+
           $task = $this->taskDrush()
             ->alias(str_replace('@', '', $alias))
+            ->drush('cset')
+            ->arg('migrate_plus.migration.su_stanford_person')
+            ->arg('status')
+            ->arg(0)
             ->drush('eval')
             ->arg($script)
             ->printOutput(FALSE);
