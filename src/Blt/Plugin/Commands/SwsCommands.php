@@ -129,36 +129,38 @@ class SwsCommands extends BltTasks {
     $db_update_tasks = [];
     $config_update_tasks = [];
 
+    $parallel_db_tasks = $this->taskParallelExec();
+    $parallel_config_tasks = $this->taskParallelExec();
     foreach ($web_servers as $server) {
-      if (!$this->checkKnownHosts($environment_name, $server->hostname)) {
-        throw new \Exception('Unknown error when connecting to ' . $server->hostname);
-      }
-      // Database updates only.
-      if (!$options['configs-only']) {
-        $task = $this->blt()
-          ->arg('sws:update-webhead')
-          ->arg($environment_name)
-          ->arg($server->hostname)
-          ->option('database-only');
-        if ($options['rebuild-node-access']) {
-          $task->option('rebuild-node-access');
-        }
-        $db_update_tasks[] = $task->getCommand();
-      }
-
-      // Config updates & imports.
-      if (!$options['database-only']) {
-        $task = $this->blt()
-          ->arg('sws:update-webhead')
-          ->arg($environment_name)
-          ->arg($server->hostname)
-          ->option('configs-only');
-        $config_update_tasks[] = $task->getCommand();
-      }
+      //      if (!$this->checkKnownHosts($environment_name, $server->hostname)) {
+      //        throw new \Exception('Unknown error when connecting to ' . $server->hostname);
+      //      }
+      //      // Database updates only.
+      //      if (!$options['configs-only']) {
+      //        $task = $this->blt()
+      //          ->arg('sws:update-webhead')
+      //          ->arg($environment_name)
+      //          ->arg($server->hostname)
+      //          ->option('database-only');
+      //        if ($options['rebuild-node-access']) {
+      //          $task->option('rebuild-node-access');
+      //        }
+      //        $db_update_tasks[] = $task->getCommand();
+      //      }
+      //
+      //      // Config updates & imports.
+      //      if (!$options['database-only']) {
+      $task = $this->blt()
+        ->arg('sws:update-webhead')
+        ->arg($environment_name)
+        ->arg($server->hostname)
+        ->option('configs-only');
+      $parallel_db_tasks->addTask($task);
+      //      }
     }
 
-    $this->taskExec(implode(" &\n", $db_update_tasks) . PHP_EOL . 'wait')->run();
-    $this->taskExec(implode(" &\n", $config_update_tasks) . PHP_EOL . 'wait')->run();
+    $parallel_db_tasks->run();
+    $parallel_config_tasks->run();
 
     if (file_exists(__DIR__ . '/failed.txt')) {
       $sites = array_filter(explode("\n", file_get_contents(__DIR__ . '/failed.txt')));
@@ -222,21 +224,28 @@ class SwsCommands extends BltTasks {
         while ($attempts < 3) {
           $attempts++;
 
+          //          $task = $this->taskDrush()
+          //            ->alias(str_replace('@', '', $alias));
+          //
+          //          if ($options['rebuild-node-access']) {
+          //            $task->drush('eval')->arg('node_access_rebuild();');
+          //          }
+          //
+          //          if (!$options['configs-only']) {
+          //            $task->drush('updatedb');
+          //          }
+          //          if (!$options['database-only']) {
+          //            $task->drush('config:import');
+          //          }
+          //
+          //          $task->drush('state:set')->arg('system.maintenance')->arg(0);
+          $script = '$fields = \Drupal::entityTypeManager()->getStorage("field_storage_config")->loadMultiple();foreach ($fields as $field) {if ($field->getThirdPartySetting("field_encrypt", "encrypt", FALSE)) {$field->unsetThirdPartySetting("field_encrypt", "encrypt");$field->unsetThirdPartySetting("field_encrypt", "properties");$field->unsetThirdPartySetting("field_encrypt", "encryption_profile");$field->save();}}$queue_factory = \Drupal::service("queue");$queue_manager = \Drupal::service("plugin.manager.queue_worker");$queue = $queue_factory->get("cron_encrypted_field_update");$queue_worker = $queue_manager->createInstance("cron_encrypted_field_update");while ($item = $queue->claimItem()) {try {$queue_worker->processItem($item->data);$queue->deleteItem($item);}catch (\Exception $e) {$queue->releaseItem($item);}}\Drupal::service("module_installer")->uninstall(["field_encrypt"]);';
           $task = $this->taskDrush()
-            ->alias(str_replace('@', '', $alias));
+            ->alias(str_replace('@', '', $alias))
+            ->drush('eval')
+            ->arg($script)
+            ->printOutput(FALSE);
 
-          if ($options['rebuild-node-access']) {
-            $task->drush('eval')->arg('node_access_rebuild();');
-          }
-
-          if (!$options['configs-only']) {
-            $task->drush('updatedb');
-          }
-          if (!$options['database-only']) {
-            $task->drush('config:import');
-          }
-
-          $task->drush('state:set')->arg('system.maintenance')->arg(0);
           if ($task->run()->wasSuccessful()) {
             $success = TRUE;
             $attempts = 999;
