@@ -214,37 +214,48 @@ class SwsCommands extends BltTasks {
     'database-only' => FALSE,
     'configs-only' => FALSE,
   ]) {
+    $aliases_to_update = [];
     foreach ($this->getSiteAliases() as $alias => $info) {
-      $success = FALSE;
       if ($info['host'] == $hostname && strpos($alias, $environment_name) !== FALSE) {
-        $attempts = 0;
-        // Try 3 times for each site update.
-        while ($attempts < 3) {
-          $attempts++;
+        $aliases_to_update[] = $alias;
+      }
+    }
 
-          $task = $this->taskDrush()
-            ->alias(str_replace('@', '', $alias));
+    foreach ($aliases_to_update as $position => $alias) {
+      $success = FALSE;
 
-          if ($options['rebuild-node-access']) {
-            $task->drush('eval')->arg('node_access_rebuild();');
-          }
+      // Send message for every 10th site.
+      if ($position % 10 == 0) {
+        $this->yell('Completed ' . $position . ' of ' . count($aliases_to_update) . ' sites on '. $hostname);
+      }
 
-          if (!$options['configs-only']) {
-            $task->drush('updatedb');
-          }
-          if (!$options['database-only']) {
-            $task->drush('config:import');
-          }
+      $attempts = 0;
+      // Try 3 times for each site update.
+      while ($attempts < 3) {
+        $attempts++;
 
-          $task->drush('state:set')->arg('system.maintenance')->arg(0);
-          if ($task->run()->wasSuccessful()) {
-            $success = TRUE;
-            $attempts = 999;
-          }
+        $task = $this->taskDrush()
+          ->alias(str_replace('@', '', $alias));
+
+        if ($options['rebuild-node-access']) {
+          $task->drush('eval')->arg('node_access_rebuild();');
         }
-        if (!$success) {
-          file_put_contents(__DIR__ . '/failed.txt', $alias . PHP_EOL, FILE_APPEND);
+
+        if (!$options['configs-only']) {
+          $task->drush('updatedb');
         }
+        if (!$options['database-only']) {
+          $task->drush('config:import');
+        }
+
+        $task->drush('state:set')->arg('system.maintenance_mode')->arg(0);
+        if ($task->run()->wasSuccessful()) {
+          $success = TRUE;
+          $attempts = 999;
+        }
+      }
+      if (!$success) {
+        file_put_contents(__DIR__ . '/failed.txt', $alias . PHP_EOL, FILE_APPEND);
       }
     }
   }
