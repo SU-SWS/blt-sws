@@ -128,11 +128,20 @@ class SwsCommands extends BltTasks {
     }
     $db_update_tasks = [];
     $config_update_tasks = [];
+    $cache_tasks = [];
 
     foreach ($web_servers as $server) {
       if (!$this->checkKnownHosts($environment_name, $server->hostname)) {
         throw new \Exception('Unknown error when connecting to ' . $server->hostname);
       }
+
+      $task = $this->blt()
+        ->arg('sws:update-webhead')
+        ->arg($environment_name)
+        ->arg($server->hostname)
+        ->option('cache-only');
+      $cache_tasks[] = $task->getCommand();
+
       // Database updates only.
       if (!$options['configs-only']) {
         $task = $this->blt()
@@ -157,8 +166,11 @@ class SwsCommands extends BltTasks {
       }
     }
 
-    $this->taskExec(implode(" &\n", $db_update_tasks) . PHP_EOL . 'wait')->run();
-    $this->taskExec(implode(" &\n", $config_update_tasks) . PHP_EOL . 'wait')->run();
+    $this->taskExec(implode(" &\n", $cache_tasks) . PHP_EOL . 'wait')->run();
+    $this->taskExec(implode(" &\n", $db_update_tasks) . PHP_EOL . 'wait')
+      ->run();
+    $this->taskExec(implode(" &\n", $config_update_tasks) . PHP_EOL . 'wait')
+      ->run();
 
     if (file_exists(__DIR__ . '/failed.txt')) {
       $sites = array_filter(explode("\n", file_get_contents(__DIR__ . '/failed.txt')));
@@ -213,6 +225,7 @@ class SwsCommands extends BltTasks {
     'rebuild-node-access' => FALSE,
     'database-only' => FALSE,
     'configs-only' => FALSE,
+    'cache-only' => FALSE,
   ]) {
     $aliases_to_update = [];
     foreach ($this->getSiteAliases() as $alias => $info) {
@@ -226,7 +239,7 @@ class SwsCommands extends BltTasks {
 
       // Send message for every 10th site.
       if ($position % 10 == 0) {
-        $this->yell('Completed ' . $position . ' of ' . count($aliases_to_update) . ' sites on '. $hostname);
+        $this->yell('Completed ' . $position . ' of ' . count($aliases_to_update) . ' sites on ' . $hostname);
       }
 
       $attempts = 0;
@@ -241,14 +254,20 @@ class SwsCommands extends BltTasks {
           $task->drush('eval')->arg('node_access_rebuild();');
         }
 
-        if (!$options['configs-only']) {
-          $task->drush('updatedb');
+        if ($options['cache-only']) {
+          $task->drush('cache:rebuild');
         }
-        if (!$options['database-only']) {
-          $task->drush('config:import');
+        else {
+          if (!$options['configs-only']) {
+            $task->drush('updatedb');
+            $task->drush('state:set')->arg('system.maintenance_mode')->arg(0);
+          }
+
+          if (!$options['database-only']) {
+            $task->drush('config:import');
+          }
         }
 
-        $task->drush('state:set')->arg('system.maintenance_mode')->arg(0);
         if ($task->run()->wasSuccessful()) {
           $success = TRUE;
           $attempts = 999;
