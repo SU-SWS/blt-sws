@@ -23,7 +23,8 @@ class ServerCommands extends AcHooksCommand {
       mkdir($keys_dir, 0777, TRUE);
     }
     $ssh = $this->getConfigValue('keys_rsync.ssh');
-    foreach ($this->getConfigValue('keys_rsync.files') as $from_path) {
+    $tasks = [];
+    foreach ($this->getConfigValue('keys_rsync.files', []) as $from_path) {
       $tasks[] = $this->taskRsync()
         ->fromPath("$ssh:$from_path")
         ->toPath($keys_dir)
