@@ -101,6 +101,10 @@ class CodeceptionCommands extends BltTasks {
       ->option('html')
       ->option('xml');
 
+    if (getenv('CI')) {
+      $test->option('env', 'ci', '=');
+    }
+
     if ($group = $this->input()->getOption('group')) {
       $test->option('group', $group, '=');
     }
