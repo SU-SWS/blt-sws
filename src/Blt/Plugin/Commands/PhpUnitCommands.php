@@ -6,6 +6,7 @@ use Acquia\Blt\Robo\BltTasks;
 use Acquia\Blt\Robo\Exceptions\BltException;
 use Acquia\BltDrupalTest\Blt\Plugin\Commands\PhpUnitCommand;
 use Drupal\Core\Serialization\Yaml;
+use Robo\Result;
 use Robo\ResultData;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Finder\Finder;
@@ -115,6 +116,47 @@ class PhpUnitCommands extends PhpUnitCommand {
       throw new \Exception("Test coverage is only at $percent%. $pass% is required.");
     }
     $this->yell(sprintf('Coverage at %s%%. %s%% required.', $percent, $pass));
+
+    return $this->uploadCoverageCodeClimate();
+  }
+
+  /**
+   * Use CodeClimate CLI to upload the phpunit coverage report.
+   *
+   * @link https://docs.codeclimate.com/docs/circle-ci-test-coverage-example
+   */
+  public function uploadCoverageCodeClimate(): ?Result {
+    $covarge_file = $this->reportsDir . '/coverage/clover.xml';
+
+    if (!file_exists($covarge_file)) {
+      $this->say('No coverage to upload to code climate.');
+      return NULL;
+    }
+
+    $test_reporter_id = getenv('CC_TEST_REPORTER_ID');
+    if (!$test_reporter_id) {
+      $this->say('To enable codeclimate coverage uploads, please set the "CC_TEST_REPORTER_ID" environment variable to enable this feature.');
+      $this->say('This can be found on the codeclimate repository settings page.');
+      return null;
+    }
+
+    // Download the executable.
+    $tasks[] = $this->taskExec('curl -L https://codeclimate.com/downloads/test-reporter/test-reporter-latest-linux-amd64 > ./cc-test-reporter')
+      ->dir(sys_get_temp_dir());
+    $tasks[] = $this->taskExec(' chmod +x ./cc-test-reporter')
+      ->dir(sys_get_temp_dir());
+
+    // Move the phpunit report into the temp directory.
+    $tasks[] = $this->taskFilesystemStack()
+      ->copy($covarge_file, sys_get_temp_dir() . '/clover.xml');
+
+    // Use the CLI to upload the report.
+    $tasks[] = $this->taskExec('./cc-test-reporter after-build -t clover')
+      ->dir(sys_get_temp_dir());
+
+    return $this->collectionBuilder()
+      ->addTaskList($tasks)
+      ->run();
   }
 
   /**
@@ -144,6 +186,7 @@ class PhpUnitCommands extends PhpUnitCommand {
 
         $task->option('coverage-html', $this->reportsDir . '/coverage/html', '=');
         $task->option('coverage-xml', $this->reportsDir . '/coverage/xml', '=');
+        $task->option('coverage-clover', $this->reportsDir . '/coverage/clover.xml', '=');
 
         if (isset($test['path'])) {
           $task->dir($test['path']);
