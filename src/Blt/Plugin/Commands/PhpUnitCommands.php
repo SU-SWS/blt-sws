@@ -126,9 +126,9 @@ class PhpUnitCommands extends PhpUnitCommand {
    * @link https://docs.codeclimate.com/docs/circle-ci-test-coverage-example
    */
   public function uploadCoverageCodeClimate(): ?Result {
-    $covarge_file = $this->reportsDir . '/coverage/clover.xml';
+    $coverage_file = $this->reportsDir . '/coverage/clover.xml';
 
-    if (!file_exists($covarge_file)) {
+    if (!file_exists($coverage_file)) {
       $this->say('No coverage to upload to code climate.');
       return NULL;
     }
@@ -140,19 +140,20 @@ class PhpUnitCommands extends PhpUnitCommand {
       return null;
     }
 
+    $repo = $this->getConfigValue('repo.root');
     // Download the executable.
     $tasks[] = $this->taskExec('curl -L https://codeclimate.com/downloads/test-reporter/test-reporter-latest-linux-amd64 > ./cc-test-reporter')
-      ->dir(sys_get_temp_dir());
+      ->dir($repo);
     $tasks[] = $this->taskExec(' chmod +x ./cc-test-reporter')
-      ->dir(sys_get_temp_dir());
+      ->dir($repo);
 
     // Move the phpunit report into the temp directory.
     $tasks[] = $this->taskFilesystemStack()
-      ->copy($covarge_file, sys_get_temp_dir() . '/clover.xml');
+      ->copy($coverage_file, $repo . '/clover.xml');
 
     // Use the CLI to upload the report.
     $tasks[] = $this->taskExec('./cc-test-reporter after-build -t clover')
-      ->dir(sys_get_temp_dir());
+      ->dir($repo);
 
     return $this->collectionBuilder()
       ->addTaskList($tasks)
