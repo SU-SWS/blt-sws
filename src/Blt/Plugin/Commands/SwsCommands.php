@@ -4,6 +4,7 @@ namespace Sws\BltSws\Blt\Plugin\Commands;
 
 use Acquia\Blt\Robo\BltTasks;
 use Acquia\Blt\Robo\Exceptions\BltException;
+use GuzzleHttp\Client;
 use Robo\ResultData;
 
 /**
@@ -160,11 +161,22 @@ class SwsCommands extends BltTasks {
       else {
         $this->say($message);
       }
-
-      $task = $this->taskDrush()
-        ->alias(str_replace('@', '', $alias))
-        ->drush('cache:rebuild')
-        ->run();
+      [$sitename,] = explode('.', str_replace('@', '', $alias));
+      $url = "https://$sitename.sites.stanford.edu/user/login";
+      $good_cache = false;
+      while (!$good_cache) {
+        try {
+          $client = new Client();
+          $client->get($url);
+          $good_cache = TRUE;
+        } catch (\Throwable $e) {
+          $this->say($e->getCode());
+          $task = $this->taskDrush()
+            ->alias(str_replace('@', '', $alias))
+            ->drush('cache:rebuild')
+            ->run();
+        }
+      }
     }
   }
 
@@ -240,8 +252,10 @@ class SwsCommands extends BltTasks {
       }
     }
 
-    $this->taskExec(implode(" &\n", $db_update_tasks) . PHP_EOL . 'wait')->run();
-    $this->taskExec(implode(" &\n", $config_update_tasks) . PHP_EOL . 'wait')->run();
+    $this->taskExec(implode(" &\n", $db_update_tasks) . PHP_EOL . 'wait')
+      ->run();
+    $this->taskExec(implode(" &\n", $config_update_tasks) . PHP_EOL . 'wait')
+      ->run();
 
     if (file_exists(__DIR__ . '/failed.txt')) {
       $sites = array_filter(explode("\n", file_get_contents(__DIR__ . '/failed.txt')));
