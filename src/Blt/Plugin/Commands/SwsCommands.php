@@ -86,6 +86,89 @@ class SwsCommands extends BltTasks {
   }
 
   /**
+   * Clear cache for all sites on an environment.
+   *
+   * @command sws:rebuild-caches
+   *
+   * @param $environment_name
+   *   Acquia environment machine name.
+   */
+  public function rebuildCaches($environment_name) {
+    $this->connectAcquiaApi();;
+    $environments = $this->acquiaEnvironments->getAll($this->appId);
+    $environment_uuid = NULL;
+    foreach ($environments as $environment) {
+      if ($environment->name == $environment_name) {
+        $environment_uuid = $environment->uuid;
+      }
+    }
+    if (!$environment_uuid) {
+      throw new \Exception('No environment found for ' . $environment_name);
+    }
+
+    $environment_servers = $this->acquiaServers->getAll($environment_uuid);
+    $web_servers = array_filter($environment_servers->getArrayCopy(), function ($server) {
+      return in_array('web', $server->roles);
+    });
+
+    $bash_lines = [];
+
+    if (file_exists(__DIR__ . '/failed.txt')) {
+      unlink(__DIR__ . '/failed.txt');
+    }
+    $commands = [];
+
+    foreach ($web_servers as $server) {
+      if (!$this->checkKnownHosts($environment_name, $server->hostname)) {
+        throw new \Exception('Unknown error when connecting to ' . $server->hostname);
+      }
+      $commands[] = $this->blt()
+        ->arg('sws:rebuild-cache-webhead')
+        ->arg($environment_name)
+        ->arg($server->hostname)
+        ->getCommand();
+    }
+
+    $this->taskExec(implode(" &\n", $commands) . PHP_EOL . 'wait')->run();
+  }
+
+  /**
+   * Clear caches on sites with an alias that matches the webhead url.
+   *
+   * @command sws:rebuild-cache-webhead
+   *
+   * @param string $environment_name
+   *   Acquia environment machine name.
+   * @param string $hostname
+   *   Drush alias host name.
+   */
+  public function rebuildCachesWebhead($environment_name, $hostname) {
+    $aliases_to_update = [];
+    foreach ($this->getSiteAliases() as $alias => $info) {
+      if ($info['host'] == $hostname && strpos($alias, $environment_name) !== FALSE) {
+        $aliases_to_update[] = $alias;
+      }
+    }
+
+    foreach ($aliases_to_update as $position => $alias) {
+      $percent = round($position / count($aliases_to_update) * 100);
+      $message = sprintf('%s%% complete. Finished %s of %s sites on %s.', $percent, $position, count($aliases_to_update), $hostname);
+      // Yell message for every 10th site.
+      if ($percent % 5 == 0) {
+        $this->yell($message);
+      }
+      else {
+        $this->say($message);
+      }
+
+      $task = $this->taskDrush()
+        ->alias(str_replace('@', '', $alias))
+        ->drush('cache:rebuild')
+        ->run();
+    }
+  }
+
+  /**
    * Clear cache, update databse and import config on all sites.
    *
    * @command sws:update-environment
