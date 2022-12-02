@@ -307,8 +307,7 @@ class SwsCommands extends BltTasks {
     foreach ($aliases_to_update as $position => $alias) {
       $success = FALSE;
 
-
-      $percent = round($position / count($aliases_to_update));
+      $percent = round($position / count($aliases_to_update) * 100);
       $message = sprintf('%s%% complete. Finished %s of %s sites on %s.', $percent, $position, count($aliases_to_update), $hostname);
       // Yell message for every 10th site.
       if ($percent % 5 == 0) {
