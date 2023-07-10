@@ -105,9 +105,9 @@ class AliasesCommand extends BltTasks {
 
         // Look for list of sites and loop over it.
         if ($acsf_sites) {
+          $server_key = 0;
           foreach ($acsf_sites['sites'] as $name => $info) {
-            // Pick a random web server to use as the host.
-            $server = $web_servers[array_rand($web_servers)];
+
 
             // Reset uri value to identify non-primary domains.
             $uri = NULL;
@@ -122,14 +122,16 @@ class AliasesCommand extends BltTasks {
               $uri = $name;
             }
 
-            foreach ($domains as $site) {
-              // Skip sites without primary domain as the alias will be invalid.
-              if (isset($uri)) {
-                $sites[$siteID][$envName] = ['uri' => $uri];
-                $siteAlias = $this->getAliases($uri, $envName, $server->hostname, $remoteUser, $siteID);
-                $sites[$siteID][$envName] = $siteAlias[$envName];
-              }
-              continue;
+            // Skip sites without primary domain as the alias will be invalid.
+            if (isset($uri)) {
+              // Pick a web server to use as the host.
+              $server_key = isset($web_servers[$server_key]) ? $server_key : key($web_servers);
+              $server = $web_servers[$server_key];
+              $server_key++;
+
+              $sites[$siteID][$envName] = ['uri' => $uri];
+              $siteAlias = $this->getAliases($uri, $envName, $server->hostname, $remoteUser, $siteID);
+              $sites[$siteID][$envName] = $siteAlias[$envName];
             }
           }
 
