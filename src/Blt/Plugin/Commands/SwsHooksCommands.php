@@ -3,6 +3,7 @@
 namespace Sws\BltSws\Blt\Plugin\Commands;
 
 use Acquia\Blt\Robo\BltTasks;
+use Drupal\Component\Utility\Crypt;
 use Robo\Contract\VerbosityThresholdInterface;
 
 /**
@@ -19,6 +20,17 @@ class SwsHooksCommands extends BltTasks {
    */
   public function prePostCodeUpdate() {
     opcache_reset();
+  }
+
+  /**
+   * Create new salt value on a deploy.
+   *
+   * @hook post-command artifact:build
+   */
+  public function postArtifactBuild(){
+    $this->taskWriteToFile($this->getConfigValue('deploy.dir') . '/salt.txt')
+      ->text(Crypt::randomBytesBase64())
+      ->run();
   }
 
   /**
