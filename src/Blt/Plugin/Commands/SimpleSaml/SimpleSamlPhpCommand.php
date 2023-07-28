@@ -1,6 +1,6 @@
 <?php
 
-namespace Acquia\BltSws\Blt\Plugin\Commands\SimpleSaml;
+namespace Sws\BltSws\Blt\Plugin\Commands\SimpleSaml;
 
 use Acquia\Blt\Robo\BltTasks;
 use Acquia\Blt\Robo\Common\YamlMunge;

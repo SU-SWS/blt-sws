@@ -94,24 +94,18 @@ class SwsCommands extends BltTasks {
    *   Acquia environment machine name.
    */
   public function rebuildCaches($environment_name) {
-    $this->connectAcquiaApi();;
-    $environments = $this->acquiaEnvironments->getAll($this->appId);
-    $environment_uuid = NULL;
-    foreach ($environments as $environment) {
-      if ($environment->name == $environment_name) {
-        $environment_uuid = $environment->uuid;
+    $aliases = $this->taskDrush()
+      ->drush('sa')
+      ->printOutput(FALSE)
+      ->run()
+      ->getMessage();
+    $aliases = json_decode($aliases, TRUE);
+    $web_servers = [];
+    foreach ($aliases as $alias => $alias_info) {
+      if (str_ends_with($alias, ".$environment_name")) {
+        $web_servers[$alias_info['host']] = $alias_info['host'];
       }
     }
-    if (!$environment_uuid) {
-      throw new \Exception('No environment found for ' . $environment_name);
-    }
-
-    $environment_servers = $this->acquiaServers->getAll($environment_uuid);
-    $web_servers = array_filter($environment_servers->getArrayCopy(), function ($server) {
-      return in_array('web', $server->roles);
-    });
-
-    $bash_lines = [];
 
     if (file_exists(__DIR__ . '/failed.txt')) {
       unlink(__DIR__ . '/failed.txt');
@@ -119,8 +113,8 @@ class SwsCommands extends BltTasks {
     $commands = [];
 
     foreach ($web_servers as $server) {
-      if (!$this->checkKnownHosts($environment_name, $server->hostname)) {
-        throw new \Exception('Unknown error when connecting to ' . $server->hostname);
+      if (!$this->checkKnownHosts($environment_name, $server)) {
+        throw new \Exception('Unknown error when connecting to ' . $server);
       }
       $commands[] = $this->blt()
         ->arg('sws:rebuild-cache-webhead')

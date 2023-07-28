@@ -1,6 +1,6 @@
 <?php
 
-namespace Acquia\BltSws\Blt\Plugin\Commands\Testing;
+namespace Sws\BltSws\Blt\Plugin\Commands\Testing;
 
 /**
  * Defines commands in the "tests" namespace.

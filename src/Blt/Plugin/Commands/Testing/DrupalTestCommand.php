@@ -1,6 +1,6 @@
 <?php
 
-namespace Acquia\BltSws\Blt\Plugin\Commands\Testing;
+namespace Sws\BltSws\Blt\Plugin\Commands\Testing;
 
 use Acquia\Blt\Robo\Commands\Tests\TestsCommandBase;
 use Acquia\Blt\Robo\Exceptions\BltException;
