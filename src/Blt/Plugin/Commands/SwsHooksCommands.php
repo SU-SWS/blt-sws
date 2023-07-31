@@ -19,7 +19,9 @@ class SwsHooksCommands extends BltTasks {
    * @hook pre-command artifact:ac-hooks:post-code-deploy
    */
   public function prePostCodeUpdate() {
-    opcache_reset();
+    if (function_exists('opcache_reset')) {
+      opcache_reset();
+    }
   }
 
   /**
