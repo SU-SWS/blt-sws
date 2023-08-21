@@ -73,15 +73,20 @@ class CircleCiCommands extends BltTasks {
     $collection = $this->collectionBuilder();
     $collection->addTaskList($this->setupSite());
     $collection->addTask($this->blt()->arg('drupal:install'));
-    $collection->addTask($this->taskDrush()
-      ->drush('pm-uninstall')
-      ->rawArg('stanford_ssp simplesamlphp_auth'));
+
     // The following drush task is necessary because we are disabling sitemapxml
     // generation during cron. The tests complete successfully in the profile,
     // but this workaround is needed for the stack.
     // @link https://github.com/SU-SWS/acsf-cardinalsites/blob/1.x/docroot/sites/settings/xmlsitemap.settings.php#L7
     $collection->addTask($this->taskDrush()->drush('xmlsitemap-regenerate'));
-    return $collection->run();
+    $result = $collection->run();
+
+    $this->taskDrush()
+      ->drush('pm-uninstall')
+      ->rawArg('stanford_ssp simplesamlphp_auth')
+      ->run();
+
+    return $result;
   }
 
   /**
