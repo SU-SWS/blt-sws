@@ -9,8 +9,7 @@
         "typhonius/acquia-php-sdk-v2": "^2.0 ||^3.0"
     },
     "replace": {
-        "acquia/blt-drupal-test": "1.0.0",
-        "acquia/blt-simplesamlphp": "1.0.0"
+        "acquia/blt-drupal-test": "1.0.0"
     },
     "autoload": {
         "psr-4": {
