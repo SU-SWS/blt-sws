@@ -16,5 +16,8 @@
         "psr-4": {
             "Sws\\BltSws\\": "./src/"
         }
+    },
+    "extra": {
+        "class": "Sws\\BltSws\\Composer\\Plugin"
     }
 }
