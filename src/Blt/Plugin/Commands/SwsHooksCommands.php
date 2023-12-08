@@ -27,7 +27,6 @@ class SwsHooksCommands extends BltTasks {
   /**
    * Create new salt value on a deploy.
    *
-   * @hook post-command artifact:build
    * @hook post-command post-deploy-build
    */
   public function postArtifactBuild(){
