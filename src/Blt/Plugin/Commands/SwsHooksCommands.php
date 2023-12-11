@@ -27,7 +27,7 @@ class SwsHooksCommands extends BltTasks {
   /**
    * Create new salt value on a deploy.
    *
-   * @hook post-command artifact:build
+   * @hook post-command post-deploy-build
    */
   public function postArtifactBuild(){
     $this->taskWriteToFile($this->getConfigValue('deploy.dir') . '/salt.txt')
