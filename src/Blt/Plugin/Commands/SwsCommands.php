@@ -96,6 +96,7 @@ class SwsCommands extends BltTasks {
   public function rebuildCaches($environment_name) {
     $aliases = $this->taskDrush()
       ->drush('sa')
+      ->option('format', 'json')
       ->printOutput(FALSE)
       ->run()
       ->getMessage();
@@ -119,7 +120,7 @@ class SwsCommands extends BltTasks {
       $commands[] = $this->blt()
         ->arg('sws:rebuild-cache-webhead')
         ->arg($environment_name)
-        ->arg($server->hostname)
+        ->arg($server)
         ->getCommand();
     }
 
