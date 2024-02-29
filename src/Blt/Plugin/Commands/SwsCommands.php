@@ -370,6 +370,11 @@ class SwsCommands extends BltTasks {
   /**
    * After code deployed, update all sites on the stack.
    *
+   * To change how many parallel processes run, set an environment variable
+   * `UPDATE_PARALLEL_PROCESSES` to a number of your choice. To send slack
+   * notifications, set an environment variable `SLACK_NOTIFICATION_URL` with
+   * the appropriate webhook url.
+   *
    * @command sws:post-code-deploy
    *
    * @aliases sws:post-code-update
