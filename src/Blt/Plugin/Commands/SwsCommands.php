@@ -374,7 +374,7 @@ class SwsCommands extends BltTasks {
    *
    * @aliases sws:post-code-update
    */
-  public function postCodeDeployUpdate($target_env, $deployed_tag) {
+  public function postCodeDeployUpdate($target_env, $deployed_tag, $options = ['no-slack' => FALSE]) {
     $sites = $this->getConfigValue('multisites');
     $parallel_executions = (int) getenv('UPDATE_PARALLEL_PROCESSES') ?: 10;
 
@@ -404,7 +404,7 @@ class SwsCommands extends BltTasks {
     unlink(sys_get_temp_dir() . '/update-report.txt');
 
     $this->yell(sprintf('Updated %s sites successfully.', count($success)), 100);
-    $slack_url = getenv('SLACK_NOTIFICATION_URL');
+    $slack_url = $options['no-slack'] ? FALSE : getenv('SLACK_NOTIFICATION_URL');
 
     if ($failed) {
       $this->yell(sprintf("Update failed for the following sites:\n%s", implode("\n", $failed)), 100, 'red');
