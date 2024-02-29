@@ -169,7 +169,7 @@ trait SwsCommandTrait {
   protected function writeAppConfig($app_id) {
 
     $project_yml = $this->getConfigValue('blt.config-files.project');
-    $this->say("Updating ${project_yml}...");
+    $this->say("Updating $project_yml...");
     $project_config = YamlMunge::parseFile($project_yml);
     $project_config['cloud']['appId'] = $app_id;
     try {
