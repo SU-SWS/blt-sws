@@ -4,6 +4,7 @@ namespace Sws\BltSws\Blt\Plugin\Commands;
 
 use Acquia\Blt\Robo\BltTasks;
 use Acquia\Blt\Robo\Exceptions\BltException;
+use GuzzleHttp\Client;
 use Robo\ResultData;
 
 /**
@@ -364,6 +365,118 @@ class SwsCommands extends BltTasks {
       ->getMessage();
     $this->siteAliases = json_decode($aliases, TRUE);
     return $this->siteAliases;
+  }
+
+  /**
+   * After code deployed, update all sites on the stack.
+   *
+   * To change how many parallel processes run, set an environment variable
+   * `UPDATE_PARALLEL_PROCESSES` to a number of your choice. To send slack
+   * notifications, set an environment variable `SLACK_NOTIFICATION_URL` with
+   * the appropriate webhook url.
+   *
+   * @command sws:post-code-deploy
+   *
+   * @aliases sws:post-code-update
+   *
+   * @option no-slack Do not send slack notification
+   * @option partial-config-import Run config:import --partial instead.
+   */
+  public function postCodeDeployUpdate($target_env, $deployed_tag, $options = ['no-slack' => FALSE, 'partial-config-import' => FALSE]) {
+    $sites = $this->getConfigValue('multisites');
+    $parallel_executions = (int) getenv('UPDATE_PARALLEL_PROCESSES') ?: 10;
+
+    $site_chunks = array_chunk($sites, ceil(count($sites) / $parallel_executions));
+    $commands = [];
+    foreach ($site_chunks as $sites) {
+      $command = $this->blt()
+        ->arg('sws:update-sites')
+        ->arg(implode(',', $sites));
+
+      if ($options['partial-config-import']) {
+        $command->option('partial-config-import');
+      }
+      $command->run();
+    }
+    file_put_contents(sys_get_temp_dir() . '/update-report.txt', '');
+    $this->taskExec(implode(" &\n", $commands) . PHP_EOL . 'wait')->run();
+    $report = array_filter(explode("\n", file_get_contents(sys_get_temp_dir() . '/update-report.txt')));
+
+    $success = [];
+    $failed = [];
+    foreach ($report as $line) {
+      [$site, $status] = explode(':', $line);
+      if ((int) $status) {
+        $success[] = $site;
+      }
+      else {
+        $failed[] = $site;
+      }
+    }
+    unlink(sys_get_temp_dir() . '/update-report.txt');
+
+    $this->yell(sprintf('Updated %s sites successfully.', count($success)), 100);
+    $slack_url = $options['no-slack'] ? FALSE : getenv('SLACK_NOTIFICATION_URL');
+
+    if ($failed) {
+      $this->yell(sprintf("Update failed for the following sites:\n%s", implode("\n", $failed)), 100, 'red');
+
+      if ($slack_url) {
+        $count = count($failed);
+        $this->sendSlackNotification($slack_url, "A new deployment has been made to *$target_env* using *$deployed_tag*.\n\n*$count* sites failed to update.");
+      }
+      throw new \Exception('Failed update');
+    }
+
+    if ($slack_url) {
+      $this->sendSlackNotification($slack_url, "A new deployment has been made to *$target_env* using *$deployed_tag*.");
+    }
+  }
+
+  /**
+   * Send out a slack notification.
+   *
+   * @param string $message
+   *   Slack message.
+   */
+  protected function sendSlackNotification(string $slack_webhook, string $message) {
+    $client = new Client();
+    $client->post($slack_webhook, [
+      'form_params' => [
+        'payload' => json_encode([
+          'username' => 'Acquia Cloud',
+          'text' => $message,
+          'icon_emoji' => 'information_source',
+        ]),
+      ],
+    ]);
+  }
+
+  /**
+   * Run db updates and config imports to a list of sites.
+   *
+   * @command sws:update-sites
+   *
+   * @var string $sites
+   *   Comma delimited list of sites to update.
+   */
+  public function updateSites($sites, $options = ['partial-config-import' => FALSE]) {
+    $sites = explode(',', $sites);
+    foreach ($sites as $site_name) {
+      $this->switchSiteContext($site_name);
+      $task = $this->taskDrush();
+      if (!$options['partial-config-import']) {
+        $task->drush('updatedb')
+          ->drush('config:import')
+          ->option('partial')
+          ->drush('deploy:hook');
+      }
+      else {
+        $task->drush('deploy');
+      }
+      $success = $task->run()->wasSuccessful();
+      file_put_contents(sys_get_temp_dir() . '/update-report.txt', $site_name . ($success ? ':1' : ':0') . PHP_EOL, FILE_APPEND);
+    }
   }
 
 }
