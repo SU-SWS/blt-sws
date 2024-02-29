@@ -396,7 +396,7 @@ class SwsCommands extends BltTasks {
       if ($options['partial-config-import']) {
         $command->option('partial-config-import');
       }
-      $command->run();
+      $commands[] = $command->getCommand();
     }
     file_put_contents(sys_get_temp_dir() . '/success-report.txt', '');
     file_put_contents(sys_get_temp_dir() . '/failed-report.txt', '');
