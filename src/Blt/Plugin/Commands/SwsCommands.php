@@ -461,7 +461,8 @@ class SwsCommands extends BltTasks {
       if (!$options['partial-config-import']) {
         $task->drush('updatedb')
           ->drush('config:import')
-          ->option('partial');
+          ->option('partial')
+          ->drush('deploy:hook');
       }
       else {
         $task->drush('deploy');
