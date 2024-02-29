@@ -398,31 +398,22 @@ class SwsCommands extends BltTasks {
       }
       $command->run();
     }
-    file_put_contents(sys_get_temp_dir() . '/update-report.txt', '');
+    file_put_contents(sys_get_temp_dir() . '/success-report.txt', '');
+    file_put_contents(sys_get_temp_dir() . '/failed-report.txt', '');
+
     $this->taskExec(implode(" &\n", $commands) . PHP_EOL . 'wait')->run();
-    $report = array_filter(explode("\n", file_get_contents(sys_get_temp_dir() . '/update-report.txt')));
 
-    $success = [];
-    $failed = [];
-    foreach ($report as $line) {
-      [$site, $status] = explode(':', $line);
-      if ((int) $status) {
-        $success[] = $site;
-      }
-      else {
-        $failed[] = $site;
-      }
-    }
-    unlink(sys_get_temp_dir() . '/update-report.txt');
+    $success_report = array_filter(explode("\n", file_get_contents(sys_get_temp_dir() . '/success-report.txt')));
+    $failed_report = array_filter(explode("\n", file_get_contents(sys_get_temp_dir() . '/failed-report.txt')));
 
-    $this->yell(sprintf('Updated %s sites successfully.', count($success)), 100);
+    $this->yell(sprintf('Updated %s sites successfully.', count($success_report)), 100);
     $slack_url = $options['no-slack'] ? FALSE : getenv('SLACK_NOTIFICATION_URL');
 
     if ($failed) {
-      $this->yell(sprintf("Update failed for the following sites:\n%s", implode("\n", $failed)), 100, 'red');
+      $this->yell(sprintf("Update failed for the following sites:\n%s", implode("\n", $failed_report)), 100, 'red');
 
       if ($slack_url) {
-        $count = count($failed);
+        $count = count($failed_report);
         $this->sendSlackNotification($slack_url, "A new deployment has been made to *$target_env* using *$deployed_tag*.\n\n*$count* sites failed to update.");
       }
       throw new \Exception('Failed update');
@@ -465,7 +456,7 @@ class SwsCommands extends BltTasks {
     foreach ($sites as $site_name) {
       $this->switchSiteContext($site_name);
       $task = $this->taskDrush();
-      if (!$options['partial-config-import']) {
+      if ($options['partial-config-import']) {
         $task->drush('updatedb')
           ->drush('config:import')
           ->option('partial')
@@ -474,8 +465,13 @@ class SwsCommands extends BltTasks {
       else {
         $task->drush('deploy');
       }
-      $success = $task->run()->wasSuccessful();
-      file_put_contents(sys_get_temp_dir() . '/update-report.txt', $site_name . ($success ? ':1' : ':0') . PHP_EOL, FILE_APPEND);
+
+      if ($task->run()->wasSuccessful()) {
+        file_put_contents(sys_get_temp_dir() . '/success-report.txt', $site_name . PHP_EOL, FILE_APPEND);
+        return;
+      }
+
+      file_put_contents(sys_get_temp_dir() . '/failed-report.txt', $site_name . PHP_EOL, FILE_APPEND);
     }
   }
 
