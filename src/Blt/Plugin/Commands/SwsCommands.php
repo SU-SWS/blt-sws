@@ -378,18 +378,25 @@ class SwsCommands extends BltTasks {
    * @command sws:post-code-deploy
    *
    * @aliases sws:post-code-update
+   *
+   * @option no-slack Do not send slack notification
+   * @option partial-config-import Run config:import --partial instead.
    */
-  public function postCodeDeployUpdate($target_env, $deployed_tag, $options = ['no-slack' => FALSE]) {
+  public function postCodeDeployUpdate($target_env, $deployed_tag, $options = ['no-slack' => FALSE, 'partial-config-import' => FALSE]) {
     $sites = $this->getConfigValue('multisites');
     $parallel_executions = (int) getenv('UPDATE_PARALLEL_PROCESSES') ?: 10;
 
     $site_chunks = array_chunk($sites, ceil(count($sites) / $parallel_executions));
     $commands = [];
     foreach ($site_chunks as $sites) {
-      $commands[] = $this->blt()
+      $command = $this->blt()
         ->arg('sws:update-sites')
-        ->arg(implode(',', $sites))
-        ->getCommand();
+        ->arg(implode(',', $sites));
+
+      if ($options['partial-config-import']) {
+        $command->option('partial-config-import');
+      }
+      $command->run();
     }
     file_put_contents(sys_get_temp_dir() . '/update-report.txt', '');
     $this->taskExec(implode(" &\n", $commands) . PHP_EOL . 'wait')->run();
