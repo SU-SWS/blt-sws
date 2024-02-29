@@ -409,7 +409,7 @@ class SwsCommands extends BltTasks {
     $this->yell(sprintf('Updated %s sites successfully.', count($success_report)), 100);
     $slack_url = $options['no-slack'] ? FALSE : getenv('SLACK_NOTIFICATION_URL');
 
-    if ($failed) {
+    if ($failed_report) {
       $this->yell(sprintf("Update failed for the following sites:\n%s", implode("\n", $failed_report)), 100, 'red');
 
       if ($slack_url) {

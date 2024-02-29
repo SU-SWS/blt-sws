@@ -77,11 +77,11 @@ class SimpleSamlPhpCommand extends BltTasks {
   protected function initializeConfig() {
     $destinationDirectory = "{$this->repoRoot}/simplesamlphp/config";
 
-    $this->say("Copying config files to ${destinationDirectory}...");
+    $this->say("Copying config files to $destinationDirectory...");
     $result = $this->taskFileSystemStack()
-      ->copy("{$this->repoRoot}/vendor/simplesamlphp/simplesamlphp/config-templates/authsources.php", "${destinationDirectory}/authsources.php", TRUE)
-      ->copy("{$this->repoRoot}/vendor/simplesamlphp/simplesamlphp/config-templates/config.php", "${destinationDirectory}/config.php", TRUE)
-      ->copy("{$this->pluginRoot}/scripts/simplesamlphp/acquia_config.php", "${destinationDirectory}/acquia_config.php", TRUE)
+      ->copy("{$this->repoRoot}/vendor/simplesamlphp/simplesamlphp/config-templates/authsources.php", "$destinationDirectory/authsources.php", TRUE)
+      ->copy("{$this->repoRoot}/vendor/simplesamlphp/simplesamlphp/config-templates/config.php", "$destinationDirectory/config.php", TRUE)
+      ->copy("{$this->pluginRoot}/scripts/simplesamlphp/acquia_config.php", "$destinationDirectory/acquia_config.php", TRUE)
       ->setVerbosityThreshold(VerbosityThresholdInterface::VERBOSITY_VERBOSE)
       ->run();
     if (!$result->wasSuccessful()) {
@@ -145,7 +145,7 @@ class SimpleSamlPhpCommand extends BltTasks {
   protected function setSimpleSamlPhpInstalled() {
     $project_yml = $this->getConfigValue('blt.config-files.project');
 
-    $this->say("Updating ${project_yml}...");
+    $this->say("Updating $project_yml...");
 
     $project_config = YamlMunge::parseFile($project_yml);
     $project_config['simplesamlphp'] = TRUE;
@@ -166,10 +166,10 @@ class SimpleSamlPhpCommand extends BltTasks {
   protected function symlinkDocrootToLibDir() {
     $docroot = $this->getConfigValue('docroot');
 
-    $this->say("Creating a symbolic link from ${docroot}/simplesaml to web accessible directory in the simplesamlphp library...");
+    $this->say("Creating a symbolic link from $docroot/simplesaml to web accessible directory in the simplesamlphp library...");
     $result = $this->taskFilesystemStack()
       //phpcs:ignore
-      ->symlink("../vendor/simplesamlphp/simplesamlphp/www", "${docroot}/simplesaml")
+      ->symlink("../vendor/simplesamlphp/simplesamlphp/www", "$docroot/simplesaml")
       ->setVerbosityThreshold(VerbosityThresholdInterface::VERBOSITY_VERBOSE)
       ->run();
 
