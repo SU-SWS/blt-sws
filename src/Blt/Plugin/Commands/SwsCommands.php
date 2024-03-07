@@ -478,7 +478,7 @@ class SwsCommands extends BltTasks {
 
       if ($task->run()->wasSuccessful()) {
         file_put_contents(sys_get_temp_dir() . '/success-report.txt', $site_name . PHP_EOL, FILE_APPEND);
-        return;
+        continue;
       }
 
       file_put_contents(sys_get_temp_dir() . '/failed-report.txt', $site_name . PHP_EOL, FILE_APPEND);
