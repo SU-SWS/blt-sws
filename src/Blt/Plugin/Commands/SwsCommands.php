@@ -182,7 +182,8 @@ class SwsCommands extends BltTasks {
     'rebuild-node-access' => FALSE,
     'database-only' => FALSE,
     'configs-only' => FALSE,
-  ]) {
+  ]
+  ) {
     $this->connectAcquiaApi();;
     $environments = $this->acquiaEnvironments->getAll($this->appId);
     $environment_uuid = NULL;
@@ -196,7 +197,7 @@ class SwsCommands extends BltTasks {
     }
 
     $environment_servers = $this->acquiaServers->getAll($environment_uuid);
-    $web_servers = array_filter($environment_servers->getArrayCopy(), function ($server) {
+    $web_servers = array_filter($environment_servers->getArrayCopy(), function($server) {
       return in_array('web', $server->roles);
     });
 
@@ -236,8 +237,10 @@ class SwsCommands extends BltTasks {
       }
     }
 
-    $this->taskExec(implode(" &\n", $db_update_tasks) . PHP_EOL . 'wait')->run();
-    $this->taskExec(implode(" &\n", $config_update_tasks) . PHP_EOL . 'wait')->run();
+    $this->taskExec(implode(" &\n", $db_update_tasks) . PHP_EOL . 'wait')
+      ->run();
+    $this->taskExec(implode(" &\n", $config_update_tasks) . PHP_EOL . 'wait')
+      ->run();
 
     if (file_exists(__DIR__ . '/failed.txt')) {
       $sites = array_filter(explode("\n", file_get_contents(__DIR__ . '/failed.txt')));
@@ -292,7 +295,8 @@ class SwsCommands extends BltTasks {
     'rebuild-node-access' => FALSE,
     'database-only' => FALSE,
     'configs-only' => FALSE,
-  ]) {
+  ]
+  ) {
     $aliases_to_update = [];
     foreach ($this->getSiteAliases() as $alias => $info) {
       if ($info['host'] == $hostname && strpos($alias, $environment_name) !== FALSE) {
@@ -382,7 +386,11 @@ class SwsCommands extends BltTasks {
    * @option no-slack Do not send slack notification
    * @option partial-config-import Run config:import --partial instead.
    */
-  public function postCodeDeployUpdate($target_env, $deployed_tag, $options = ['no-slack' => FALSE, 'partial-config-import' => FALSE]) {
+  public function postCodeDeployUpdate($target_env, $deployed_tag, $options = [
+    'no-slack' => FALSE,
+    'partial-config-import' => FALSE,
+  ]
+  ) {
     $sites = $this->getConfigValue('multisites');
     $parallel_executions = (int) getenv('UPDATE_PARALLEL_PROCESSES') ?: 10;
 
@@ -465,6 +473,10 @@ class SwsCommands extends BltTasks {
     $sites = explode(',', $sites);
     foreach ($sites as $site_name) {
       $this->switchSiteContext($site_name);
+      if (!$this->isDrupalInstalled()) {
+        continue;
+      }
+
       $task = $this->taskDrush();
       if ($options['partial-config-import']) {
         $task->drush('updatedb')
@@ -483,6 +495,39 @@ class SwsCommands extends BltTasks {
 
       file_put_contents(sys_get_temp_dir() . '/failed-report.txt', $site_name . PHP_EOL, FILE_APPEND);
     }
+  }
+
+  /**
+   * Checks that Drupal is installed, caches result.
+   *
+   * Taken from \Acquia\Blt\Robo\Inspector\Inspector::isDrupalInstalled
+   *
+   * @return bool
+   *   TRUE if Drupal is installed.
+   */
+  public function isDrupalInstalled($site) {
+    $this->logger->debug("Verifying that $site has Drupal is installed...");
+    return 'Successful' == ($this->getDrushStatus()['bootstrap'] ?? '');
+  }
+
+  /**
+   * Gets the result of `drush status`.
+   *
+   * @return array
+   *   The result of `drush status`.
+   */
+  public function getDrushStatus() {
+    $docroot = $this->getConfigValue('docroot');
+    $status_info = (array) json_decode($this->taskDrush()
+      ->drush('status')
+      ->option('format', 'json')
+      ->option('fields', '*')
+      ->option('root', $docroot)
+      ->printOutput()
+      ->run()
+      ->getMessage(), TRUE);
+
+    return $status_info;
   }
 
 }
