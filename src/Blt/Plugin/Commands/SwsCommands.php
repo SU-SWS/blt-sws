@@ -386,7 +386,16 @@ class SwsCommands extends BltTasks {
     $sites = $this->getConfigValue('multisites');
     $parallel_executions = (int) getenv('UPDATE_PARALLEL_PROCESSES') ?: 10;
 
-    $site_chunks = array_chunk($sites, ceil(count($sites) / $parallel_executions));
+    $i = 0;
+    while ($sites) {
+      $site = array_splice($sites, 0, 1);
+      $site_chunks[$i][] = reset($site);
+      $i++;
+      if ($i >= $parallel_executions) {
+        $i = 0;
+      }
+    }
+
     $commands = [];
     foreach ($site_chunks as $sites) {
       $command = $this->blt()
@@ -398,6 +407,7 @@ class SwsCommands extends BltTasks {
       }
       $commands[] = $command->getCommand();
     }
+
     file_put_contents(sys_get_temp_dir() . '/success-report.txt', '');
     file_put_contents(sys_get_temp_dir() . '/failed-report.txt', '');
 
