@@ -381,8 +381,9 @@ class SwsCommands extends BltTasks {
    *
    * @option no-slack Do not send slack notification
    * @option partial-config-import Run config:import --partial instead.
+   * @option require-drupal-install If a site is not installed, consider it failed.
    */
-  public function postCodeDeployUpdate($target_env, $deployed_tag, $options = ['no-slack' => FALSE, 'partial-config-import' => FALSE]) {
+  public function postCodeDeployUpdate($target_env, $deployed_tag, $options = ['no-slack' => FALSE, 'partial-config-import' => FALSE, 'require-drupal-install' => FALSE]) {
     $sites = $this->getConfigValue('multisites');
     $parallel_executions = (int) getenv('UPDATE_PARALLEL_PROCESSES') ?: 10;
 
@@ -404,6 +405,10 @@ class SwsCommands extends BltTasks {
 
       if ($options['partial-config-import']) {
         $command->option('partial-config-import');
+      }
+
+      if ($options['require-drupal-install']) {
+        $command->option('require-drupal-install');
       }
       $commands[] = $command->getCommand();
     }
@@ -461,10 +466,13 @@ class SwsCommands extends BltTasks {
    * @var string $sites
    *   Comma delimited list of sites to update.
    */
-  public function updateSites($sites, $options = ['partial-config-import' => FALSE]) {
+  public function updateSites($sites, $options = ['partial-config-import' => FALSE, 'require-drupal-install' => FALSE]) {
     $sites = explode(',', $sites);
     foreach ($sites as $site_name) {
       $this->switchSiteContext($site_name);
+      if (!$this->isDrupalInstalled($site_name) && !$options['require-drupal-install']) {
+        continue;
+      }
       $task = $this->taskDrush();
       if ($options['partial-config-import']) {
         $task->drush('updatedb')
@@ -483,6 +491,39 @@ class SwsCommands extends BltTasks {
 
       file_put_contents(sys_get_temp_dir() . '/failed-report.txt', $site_name . PHP_EOL, FILE_APPEND);
     }
+  }
+  
+    /**
+   * Checks that Drupal is installed, caches result.
+   *
+   * Taken from \Acquia\Blt\Robo\Inspector\Inspector::isDrupalInstalled
+   *
+   * @return bool
+   *   TRUE if Drupal is installed.
+   */
+  public function isDrupalInstalled($site) {
+    $this->logger->debug("Verifying that $site has Drupal is installed...");
+    return 'Successful' == ($this->getDrushStatus()['bootstrap'] ?? '');
+  }
+
+  /**
+   * Gets the result of `drush status`.
+   *
+   * @return array
+   *   The result of `drush status`.
+   */
+  public function getDrushStatus() {
+    $docroot = $this->getConfigValue('docroot');
+    $status_info = (array) json_decode($this->taskDrush()
+      ->drush('status')
+      ->option('format', 'json')
+      ->option('fields', '*')
+      ->option('root', $docroot)
+      ->printOutput(FALSE)
+      ->run()
+      ->getMessage(), TRUE);
+
+    return $status_info;
   }
 
 }
