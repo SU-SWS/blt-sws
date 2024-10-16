@@ -183,23 +183,12 @@ class SwsCommands extends BltTasks {
     'database-only' => FALSE,
     'configs-only' => FALSE,
   ]) {
-    $this->connectAcquiaApi();;
-    $environments = $this->acquiaEnvironments->getAll($this->appId);
-    $environment_uuid = NULL;
-    foreach ($environments as $environment) {
-      if ($environment->name == $environment_name) {
-        $environment_uuid = $environment->uuid;
+    $web_servers = [];
+    foreach ($this->getSiteAliases() as $alias) {
+      if (str_contains($alias['host'], 'acquia')) {
+        $web_servers[$alias['host']] = $alias['host'];
       }
     }
-    if (!$environment_uuid) {
-      throw new \Exception('No environment found for ' . $environment_name);
-    }
-
-    $environment_servers = $this->acquiaServers->getAll($environment_uuid);
-    $web_servers = array_filter($environment_servers->getArrayCopy(), function ($server) {
-      return in_array('web', $server->roles);
-    });
-
     $bash_lines = [];
 
     if (file_exists(__DIR__ . '/failed.txt')) {
@@ -209,15 +198,15 @@ class SwsCommands extends BltTasks {
     $config_update_tasks = [];
 
     foreach ($web_servers as $server) {
-      if (!$this->checkKnownHosts($environment_name, $server->hostname)) {
-        throw new \Exception('Unknown error when connecting to ' . $server->hostname);
+      if (!$this->checkKnownHosts($environment_name, $server)) {
+        throw new \Exception('Unknown error when connecting to ' . $server);
       }
       // Database updates only.
       if (!$options['configs-only']) {
         $task = $this->blt()
           ->arg('sws:update-webhead')
           ->arg($environment_name)
-          ->arg($server->hostname)
+          ->arg($server)
           ->option('database-only');
         if ($options['rebuild-node-access']) {
           $task->option('rebuild-node-access');
@@ -261,7 +250,7 @@ class SwsCommands extends BltTasks {
   protected function checkKnownHosts($environment_name, $hostname) {
     $this->say('Checking connection to webhead ' . $hostname);
     foreach ($this->getSiteAliases() as $alias => $info) {
-      if ($info['host'] == $hostname && strpos($alias, $environment_name) !== FALSE) {
+      if ($info['host'] == $hostname && str_contains($alias, $environment_name)) {
         return $this->taskDrush()->alias(str_replace('@', '', $alias))
           ->drush('st')
           ->printOutput(FALSE)
@@ -295,7 +284,7 @@ class SwsCommands extends BltTasks {
   ]) {
     $aliases_to_update = [];
     foreach ($this->getSiteAliases() as $alias => $info) {
-      if ($info['host'] == $hostname && strpos($alias, $environment_name) !== FALSE) {
+      if ($info['host'] == $hostname && str_contains($alias, $environment_name)) {
         $aliases_to_update[] = $alias;
       }
     }
@@ -492,7 +481,7 @@ class SwsCommands extends BltTasks {
       file_put_contents(sys_get_temp_dir() . '/failed-report.txt', $site_name . PHP_EOL, FILE_APPEND);
     }
   }
-  
+
     /**
    * Checks that Drupal is installed, caches result.
    *
