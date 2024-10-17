@@ -141,7 +141,7 @@ class SwsCommands extends BltTasks {
   public function rebuildCachesWebhead($environment_name, $hostname) {
     $aliases_to_update = [];
     foreach ($this->getSiteAliases() as $alias => $info) {
-      if ($info['host'] == $hostname && strpos($alias, $environment_name) !== FALSE) {
+      if ($info['host'] == $hostname && str_contains($alias, $environment_name)) {
         $aliases_to_update[] = $alias;
       }
     }
@@ -184,12 +184,11 @@ class SwsCommands extends BltTasks {
     'configs-only' => FALSE,
   ]) {
     $web_servers = [];
-    foreach ($this->getSiteAliases() as $alias) {
-      if (str_contains($alias['host'], 'acquia')) {
-        $web_servers[$alias['host']] = $alias['host'];
+    foreach ($this->getSiteAliases() as $alias => $alias_info) {
+      if (str_ends_with($alias, ".$environment_name") && str_contains($alias_info['host'], 'acquia')) {
+        $web_servers[$alias_info['host']] = $alias_info['host'];
       }
     }
-    $bash_lines = [];
 
     if (file_exists(__DIR__ . '/failed.txt')) {
       unlink(__DIR__ . '/failed.txt');
@@ -219,7 +218,7 @@ class SwsCommands extends BltTasks {
         $task = $this->blt()
           ->arg('sws:update-webhead')
           ->arg($environment_name)
-          ->arg($server->hostname)
+          ->arg($server)
           ->option('configs-only');
         $config_update_tasks[] = $task->getCommand();
       }
