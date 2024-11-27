@@ -4,6 +4,7 @@ namespace Sws\BltSws\Blt\Plugin\Commands;
 
 use Acquia\Blt\Robo\Exceptions\BltException;
 
+use Consolidation\AnnotatedCommand\CommandData;
 use Drupal\Core\Serialization\Yaml;
 use Robo\Result;
 use Sws\BltSws\Blt\Plugin\Commands\Testing\PhpUnitCommand;
@@ -92,7 +93,7 @@ class PhpUnitCommands extends PhpUnitCommand {
    *
    * @hook post-command tests:phpunit:coverage:run
    */
-  public function postPhpUnitCoverage() {
+  public function postPhpUnitCoverage($result, CommandData $commandData) {
     $required_pass = $this->getConfigValue('tests.reports.coveragePass');
     if (empty($required_pass)) {
       return;
@@ -116,7 +117,11 @@ class PhpUnitCommands extends PhpUnitCommand {
     }
     $this->yell(sprintf('Coverage at %s%%. %s%% required.', $percent, $pass));
 
-    return $this->uploadCoverageCodeClimate();
+    $upload = $this->uploadCoverageCodeClimate();
+    if (!$upload->wasSuccessful()) {
+      return $upload;
+    }
+    return $result;
   }
 
   /**
@@ -136,7 +141,7 @@ class PhpUnitCommands extends PhpUnitCommand {
     if (!$test_reporter_id) {
       $this->say('To enable codeclimate coverage uploads, please set the "CC_TEST_REPORTER_ID" environment variable to enable this feature.');
       $this->say('This can be found on the codeclimate repository settings page.');
-      return null;
+      return NULL;
     }
 
     $repo = $this->getConfigValue('repo.root');
