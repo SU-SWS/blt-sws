@@ -118,7 +118,7 @@ class PhpUnitCommands extends PhpUnitCommand {
     $this->yell(sprintf('Coverage at %s%%. %s%% required.', $percent, $pass));
 
     $upload = $this->uploadCoverageCodeClimate();
-    if (!$upload->wasSuccessful()) {
+    if ($upload && !$upload->wasSuccessful()) {
       return $upload;
     }
     return $result;
