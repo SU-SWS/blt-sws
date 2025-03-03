@@ -131,7 +131,7 @@ trait SwsCommandTrait {
   /**
    * @throws \Acquia\Blt\Robo\Exceptions\BltException
    */
-  protected function connectAcquiaApi(){
+  protected function connectAcquiaApi() {
     $this->cloudConfDir = $_SERVER['HOME'] . '/.acquia';
     $this->setAppId();
     $this->cloudConfFileName = 'cloud_api.conf';
@@ -140,9 +140,8 @@ trait SwsCommandTrait {
     $this->say('<info>Establishing connection to Acquia API</info>');
     $cloudApiConfig = $this->loadCloudApiConfig();
     if ($cloudApiConfig['acli_key'] && $cloudApiConfig['keys']) {
-      $apiKeys = json_decode(json_encode($cloudApiConfig['keys']), TRUE);
       $apiKey = $cloudApiConfig['acli_key'];
-      $apiSecret = $apiKeys[$apiKey]['secret'];
+      $apiSecret = $cloudApiConfig['keys']->$apiKey->secret;
     } else {
       $apiKey = $cloudApiConfig['key'];
       $apiSecret = $cloudApiConfig['secret'];
