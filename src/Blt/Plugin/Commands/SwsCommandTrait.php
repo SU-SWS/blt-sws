@@ -54,7 +54,7 @@ trait SwsCommandTrait {
   protected $cloudConfFilePath;
 
   /**
-   * @var 
+   * @var
    */
   protected $acquiaApi;
 
@@ -139,7 +139,15 @@ trait SwsCommandTrait {
 
     $this->say('<info>Establishing connection to Acquia API</info>');
     $cloudApiConfig = $this->loadCloudApiConfig();
-    $this->setCloudApiClient($cloudApiConfig['key'], $cloudApiConfig['secret']);
+    if ($cloudApiConfig['acli_key'] && $cloudApiConfig['keys']) {
+      $apiKeys = json_decode(json_encode($cloudApiConfig['keys']), TRUE);
+      $apiKey = $cloudApiConfig['acli_key'];
+      $apiSecret = $apiKeys[$apiKey]['secret'];
+    } else {
+      $apiKey = $cloudApiConfig['key'];
+      $apiSecret = $cloudApiConfig['secret'];
+    }
+    $this->setCloudApiClient($apiKey, $apiSecret);
   }
 
   /**
@@ -409,7 +417,7 @@ trait SwsCommandTrait {
         'secret' => $secret,
       ]);
       $this->acquiaApi  = Client::factory($connector);
-      
+
       $this->acquiaApplications = new Applications($this->acquiaApi);
       $this->acquiaEnvironments = new Environments($this->acquiaApi);
       $this->acquiaServers = new Servers($this->acquiaApi);
