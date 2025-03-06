@@ -15,6 +15,13 @@ use Symfony\Component\Console\Output\OutputInterface;
 class CodeceptionCommands extends BltTasks {
 
   /**
+   * Fail fast option.
+   *
+   * @var int
+   */
+  protected $failFast;
+
+  /**
    * Run all the codeception tests defined in blt.yml.
    *
    * @param array $options
@@ -27,15 +34,20 @@ class CodeceptionCommands extends BltTasks {
    * @aliases tests:codeception codeception
    * @options test The key of the tests to run.
    * @options suite only run a specific suite instead of all suites.
+   * @options stop after nth failure (defaults to 1)
    */
   public function runCodeceptionTests(array $options = [
     'test' => NULL,
     'suite' => NULL,
     'group' => NULL,
-  ]) {
+    'fail-fast' => NULL,
+  ])
+  {
     $failed_test = NULL;
 
     $tests = $this->getConfigValue('tests.codeception', []);
+
+    $this->failFast = (int) $options['fail-fast'];
 
     // Run only the test that was defined in the options.
     if (!empty($options['test'])) {
@@ -96,13 +108,16 @@ class CodeceptionCommands extends BltTasks {
       ->arg($suite)
       ->option('steps')
       ->option('config', 'tests', '=')
-      ->option('fail-fast')
       ->option('override', "paths: output: ../artifacts/$suite", '=')
       ->option('html')
       ->option('xml');
 
     if (getenv('CI')) {
       $test->option('env', 'ci', '=');
+    }
+
+    if ($this->failFast) {
+      $test->option('fail-fast', $this->failFast, '=');
     }
 
     if ($group = $this->input()->getOption('group')) {
@@ -130,5 +145,4 @@ class CodeceptionCommands extends BltTasks {
 
     return $test_result;
   }
-
 }
