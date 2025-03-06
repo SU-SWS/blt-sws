@@ -47,7 +47,7 @@ class CodeceptionCommands extends BltTasks {
 
     $tests = $this->getConfigValue('tests.codeception', []);
 
-    $this->failFast = $options['fail-fast'];
+    $this->failFast = (int) $options['fail-fast'];
 
     // Run only the test that was defined in the options.
     if (!empty($options['test'])) {
