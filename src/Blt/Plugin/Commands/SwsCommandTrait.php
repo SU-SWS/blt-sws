@@ -139,7 +139,7 @@ trait SwsCommandTrait {
 
     $this->say('<info>Establishing connection to Acquia API</info>');
     $cloudApiConfig = $this->loadCloudApiConfig();
-    if ($cloudApiConfig['acli_key'] && $cloudApiConfig['keys']) {
+    if (isset($cloudApiConfig['acli_key']) && isset($cloudApiConfig['keys'])) {
       $apiKey = $cloudApiConfig['acli_key'];
       $apiSecret = $cloudApiConfig['keys']->$apiKey->secret;
     } else {
